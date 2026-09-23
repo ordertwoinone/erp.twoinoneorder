@@ -12,7 +12,10 @@ export function useSuppliersQuery({ search, pageIndex }: { search: string; pageI
 
       let query = supabase
         .from('suppliers')
-        .select('id, code, name, trn, payment_terms_days, is_active', { count: 'exact' })
+        .select(
+          'id, code, name, trn, payment_terms_days, salesman_name, credit_limit_amount, credit_limit_currency, is_active',
+          { count: 'exact' },
+        )
         .order('name')
         .range(from, to)
 

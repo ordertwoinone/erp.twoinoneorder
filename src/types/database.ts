@@ -138,6 +138,9 @@ export interface Database {
           bank_account_number: string | null
           bank_iban: string | null
           bank_swift: string | null
+          salesman_name: string | null
+          credit_limit_amount: number | null
+          credit_limit_currency: 'AED' | 'USD' | 'EUR' | 'INR' | 'EGP' | null
           is_active: boolean
           created_by: string | null
           created_at: string
@@ -145,6 +148,12 @@ export interface Database {
         }
         Insert: Partial<Database['public']['Tables']['suppliers']['Row']> & { code: string; name: string }
         Update: Partial<Database['public']['Tables']['suppliers']['Row']>
+        Relationships: []
+      }
+      exchange_rates: {
+        Row: { currency_code: string; rate_to_aed: number; updated_by: string | null; updated_at: string }
+        Insert: { currency_code: string; rate_to_aed: number; updated_by?: string | null }
+        Update: Partial<Database['public']['Tables']['exchange_rates']['Row']>
         Relationships: []
       }
       categories: {
@@ -1084,6 +1093,10 @@ export interface Database {
       }
       set_accounting_period_status: {
         Args: { p_restaurant_id: string; p_period_month: string; p_status: string }
+        Returns: undefined
+      }
+      set_exchange_rate: {
+        Args: { p_currency_code: string; p_rate_to_aed: number }
         Returns: undefined
       }
     }

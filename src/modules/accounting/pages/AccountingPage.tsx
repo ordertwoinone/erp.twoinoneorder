@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
-import { Lock, LockOpen } from 'lucide-react'
+import { Lock, LockOpen, Save } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Dialog,
@@ -16,9 +17,11 @@ import { StatusBadge } from '@/components/shared/StatusBadge'
 import { DataTable } from '@/components/tables/DataTable'
 import { FullScreenSpinner } from '@/components/shared/FullScreenSpinner'
 import { ConfirmActionDialog } from '@/components/shared/ConfirmActionDialog'
-import { formatCurrency, formatDate } from '@/lib/utils/format'
+import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils/format'
 import { useAuth } from '@/hooks/useAuth'
 import { useRestaurantScope } from '@/hooks/useRestaurantScope'
+import { useExchangeRatesQuery, useSetExchangeRate } from '@/hooks/useExchangeRates'
+import { CURRENCY_OPTIONS } from '@/schemas/supplier'
 import {
   useAccountingAccountsQuery,
   useAccountingPeriodsQuery,
@@ -88,6 +91,7 @@ export default function AccountingPage() {
           <TabsTrigger value="journal">Journal</TabsTrigger>
           <TabsTrigger value="accounts">Chart of Accounts</TabsTrigger>
           <TabsTrigger value="periods">Periods</TabsTrigger>
+          <TabsTrigger value="exchange-rates">Exchange Rates</TabsTrigger>
         </TabsList>
 
         <TabsContent value="journal">
@@ -156,9 +160,71 @@ export default function AccountingPage() {
             </div>
           )}
         </TabsContent>
+
+        <TabsContent value="exchange-rates">
+          <ExchangeRatesPanel canManage={canManage} />
+        </TabsContent>
       </Tabs>
 
       <JournalEntryDialog entryId={selectedEntryId} onOpenChange={(open) => !open && setSelectedEntryId(undefined)} />
+    </div>
+  )
+}
+
+function ExchangeRatesPanel({ canManage }: { canManage: boolean }) {
+  const { data: rates, isLoading } = useExchangeRatesQuery()
+  const setRate = useSetExchangeRate()
+  const [drafts, setDrafts] = useState<Record<string, string>>({})
+
+  if (isLoading) return <FullScreenSpinner />
+
+  return (
+    <div className="max-w-xl space-y-3">
+      <p className="text-sm text-muted-foreground">
+        AED is the base currency every accounting figure and report is shown in. Currencies with no rate set here
+        show as "rate not set" wherever they'd otherwise need converting — never a guessed number.
+      </p>
+      {CURRENCY_OPTIONS.map((code) => {
+        const existing = rates?.find((r) => r.currency_code === code)
+        const isAed = code === 'AED'
+        return (
+          <div key={code} className="flex items-center justify-between gap-3 rounded-md border p-3">
+            <div>
+              <p className="font-medium">{code}</p>
+              {existing ? (
+                <p className="text-xs text-muted-foreground">
+                  1 {code} = {existing.rate_to_aed} AED · updated {formatDateTime(existing.updated_at)}
+                </p>
+              ) : (
+                <p className="text-xs text-destructive">No rate set</p>
+              )}
+            </div>
+            {canManage && !isAed && (
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  step="0.000001"
+                  className="h-8 w-32"
+                  placeholder={existing ? String(existing.rate_to_aed) : '1 unit = ? AED'}
+                  value={drafts[code] ?? ''}
+                  onChange={(e) => setDrafts((prev) => ({ ...prev, [code]: e.target.value }))}
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={!drafts[code] || setRate.isPending}
+                  onClick={() => {
+                    const value = Number(drafts[code])
+                    if (value > 0) setRate.mutate({ currencyCode: code, rateToAed: value })
+                  }}
+                >
+                  <Save />
+                </Button>
+              </div>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }

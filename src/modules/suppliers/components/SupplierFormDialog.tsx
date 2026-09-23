@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   Dialog,
   DialogContent,
@@ -16,7 +17,9 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { useAuth } from '@/hooks/useAuth'
-import { supplierSchema, type SupplierInput } from '@/schemas/supplier'
+import { useAedEquivalent } from '@/hooks/useExchangeRates'
+import { formatCurrency } from '@/lib/utils/format'
+import { CURRENCY_OPTIONS, supplierSchema, type SupplierInput } from '@/schemas/supplier'
 import { useSaveSupplier } from '../hooks/useSaveSupplier'
 import { useSupplierQuery } from '../hooks/useSuppliers'
 
@@ -25,6 +28,9 @@ const emptyValues: SupplierInput = {
   name: '',
   trn: '',
   payment_terms_days: 30,
+  salesman_name: '',
+  credit_limit_amount: '',
+  credit_limit_currency: 'AED',
   bank_name: '',
   bank_account_name: '',
   bank_account_number: '',
@@ -54,8 +60,16 @@ export function SupplierFormDialog({
     handleSubmit,
     reset,
     control,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<SupplierInput>({ resolver: zodResolver(supplierSchema), defaultValues: emptyValues })
+
+  const creditLimitAmount = watch('credit_limit_amount')
+  const creditLimitCurrency = watch('credit_limit_currency')
+  const aedEquivalent = useAedEquivalent(
+    creditLimitAmount === '' ? null : Number(creditLimitAmount),
+    creditLimitCurrency,
+  )
 
   useEffect(() => {
     if (!open) return
@@ -66,6 +80,9 @@ export function SupplierFormDialog({
         name: existing.name,
         trn: existing.trn ?? '',
         payment_terms_days: existing.payment_terms_days,
+        salesman_name: existing.salesman_name ?? '',
+        credit_limit_amount: existing.credit_limit_amount ?? '',
+        credit_limit_currency: existing.credit_limit_currency ?? 'AED',
         bank_name: existing.bank_name ?? '',
         bank_account_name: existing.bank_account_name ?? '',
         bank_account_number: existing.bank_account_number ?? '',
@@ -113,6 +130,48 @@ export function SupplierFormDialog({
           <div className="space-y-2">
             <Label htmlFor="trn">TRN</Label>
             <Input id="trn" {...register('trn')} />
+          </div>
+
+          <div className="space-y-4 rounded-md border p-3">
+            <p className="text-sm font-medium text-muted-foreground">Salesman &amp; credit</p>
+            <div className="space-y-2">
+              <Label htmlFor="salesman_name">Salesman name</Label>
+              <Input id="salesman_name" {...register('salesman_name')} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="credit_limit_amount">Credit limit</Label>
+                <Input id="credit_limit_amount" type="number" step="0.01" {...register('credit_limit_amount')} />
+              </div>
+              <div className="space-y-2">
+                <Label>Currency</Label>
+                <Controller
+                  control={control}
+                  name="credit_limit_currency"
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CURRENCY_OPTIONS.map((c) => (
+                          <SelectItem key={c} value={c}>
+                            {c}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </div>
+            </div>
+            {creditLimitCurrency !== 'AED' && creditLimitAmount !== '' && (
+              <p className="text-xs text-muted-foreground">
+                {aedEquivalent !== null
+                  ? `≈ ${formatCurrency(aedEquivalent)} (accounting/reports always show AED)`
+                  : `No exchange rate set for ${creditLimitCurrency} yet — set one in Accounting → Exchange Rates.`}
+              </p>
+            )}
           </div>
 
           {canViewBank && (

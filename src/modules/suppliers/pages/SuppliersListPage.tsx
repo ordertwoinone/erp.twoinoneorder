@@ -9,6 +9,7 @@ import { DataTable } from '@/components/tables/DataTable'
 import { useAuth } from '@/hooks/useAuth'
 import { useSuppliersQuery, SUPPLIERS_PAGE_SIZE } from '../hooks/useSuppliers'
 import { SupplierFormDialog } from '../components/SupplierFormDialog'
+import { CreditLimitCell } from '../components/CreditLimitCell'
 
 interface SupplierRow {
   id: string
@@ -16,6 +17,9 @@ interface SupplierRow {
   name: string
   trn: string | null
   payment_terms_days: number
+  salesman_name: string | null
+  credit_limit_amount: number | null
+  credit_limit_currency: string | null
   is_active: boolean
 }
 
@@ -38,6 +42,14 @@ export default function SuppliersListPage() {
         accessorKey: 'payment_terms_days',
         header: 'Payment Terms',
         cell: ({ getValue }) => `${getValue()} days`,
+      },
+      { accessorKey: 'salesman_name', header: 'Salesman', cell: ({ getValue }) => (getValue() as string) || '—' },
+      {
+        accessorKey: 'credit_limit_amount',
+        header: 'Credit Limit',
+        cell: ({ row }) => (
+          <CreditLimitCell amount={row.original.credit_limit_amount} currency={row.original.credit_limit_currency} />
+        ),
       },
       {
         accessorKey: 'is_active',
