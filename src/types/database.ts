@@ -542,6 +542,46 @@ export interface Database {
         Update: Partial<Database['public']['Tables']['employee_assignments']['Row']>
         Relationships: []
       }
+      operating_expenses: {
+        Row: {
+          id: string
+          expense_number: string
+          restaurant_id: string
+          expense_category_id: string
+          amount: number
+          expense_date: string
+          status: 'draft' | 'pending_approval' | 'approved' | 'posted' | 'rejected' | 'cancelled'
+          payment_voucher_id: string | null
+          notes: string | null
+          created_by: string | null
+          approved_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['operating_expenses']['Row']> & {
+          restaurant_id: string
+          expense_category_id: string
+          amount: number
+          expense_date: string
+        }
+        Update: Partial<Database['public']['Tables']['operating_expenses']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'operating_expenses_expense_category_id_fkey'
+            columns: ['expense_category_id']
+            isOneToOne: false
+            referencedRelation: 'expense_categories'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'operating_expenses_restaurant_id_fkey'
+            columns: ['restaurant_id']
+            isOneToOne: false
+            referencedRelation: 'restaurants'
+            referencedColumns: ['id']
+          },
+        ]
+      }
     }
     Views: Record<string, never>
     Functions: {
@@ -595,6 +635,14 @@ export interface Database {
       }
       transfer_employee: {
         Args: { p_employee_id: string; p_new_restaurant_id: string; p_effective_date?: string }
+        Returns: undefined
+      }
+      save_expense_draft: {
+        Args: { payload: Json }
+        Returns: string
+      }
+      transition_expense: {
+        Args: { p_expense_id: string; p_action: string; p_comment?: string | null }
         Returns: undefined
       }
     }
