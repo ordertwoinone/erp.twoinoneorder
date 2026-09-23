@@ -302,6 +302,82 @@ export interface Database {
           },
         ]
       }
+      sales_channels: {
+        Row: { id: string; code: string; name: string; is_active: boolean }
+        Insert: { id?: string; code: string; name: string; is_active?: boolean }
+        Update: Partial<Database['public']['Tables']['sales_channels']['Row']>
+        Relationships: []
+      }
+      payment_methods: {
+        Row: { id: string; code: string; name: string; is_active: boolean }
+        Insert: { id?: string; code: string; name: string; is_active?: boolean }
+        Update: Partial<Database['public']['Tables']['payment_methods']['Row']>
+        Relationships: []
+      }
+      sales_entries: {
+        Row: {
+          id: string
+          restaurant_id: string
+          business_date: string
+          shift: 'morning' | 'evening' | 'full_day'
+          gross_sales: number
+          discounts: number
+          refunds: number
+          tax_amount: number
+          net_sales: number
+          status: 'draft' | 'submitted' | 'reviewed' | 'posted'
+          submitted_by: string | null
+          reviewed_by: string | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['sales_entries']['Row']> & {
+          restaurant_id: string
+          business_date: string
+        }
+        Update: Partial<Database['public']['Tables']['sales_entries']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'sales_entries_restaurant_id_fkey'
+            columns: ['restaurant_id']
+            isOneToOne: false
+            referencedRelation: 'restaurants'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      sales_payment_breakdowns: {
+        Row: {
+          id: string
+          sales_entry_id: string
+          sales_channel_id: string | null
+          payment_method_id: string
+          amount: number
+        }
+        Insert: Partial<Database['public']['Tables']['sales_payment_breakdowns']['Row']> & {
+          sales_entry_id: string
+          payment_method_id: string
+          amount: number
+        }
+        Update: Partial<Database['public']['Tables']['sales_payment_breakdowns']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'sales_payment_breakdowns_payment_method_id_fkey'
+            columns: ['payment_method_id']
+            isOneToOne: false
+            referencedRelation: 'payment_methods'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'sales_payment_breakdowns_sales_channel_id_fkey'
+            columns: ['sales_channel_id']
+            isOneToOne: false
+            referencedRelation: 'sales_channels'
+            referencedColumns: ['id']
+          },
+        ]
+      }
     }
     Views: Record<string, never>
     Functions: {
@@ -331,6 +407,14 @@ export interface Database {
       }
       post_purchase: {
         Args: { p_purchase_id: string }
+        Returns: undefined
+      }
+      save_sales_entry: {
+        Args: { payload: Json }
+        Returns: string
+      }
+      transition_sales_entry: {
+        Args: { p_sales_entry_id: string; p_action: string }
         Returns: undefined
       }
     }
