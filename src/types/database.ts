@@ -378,6 +378,120 @@ export interface Database {
           },
         ]
       }
+      bank_accounts: {
+        Row: {
+          id: string
+          restaurant_id: string | null
+          bank_name: string
+          account_name: string
+          account_number: string
+          iban: string | null
+          swift: string | null
+          currency: string
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['bank_accounts']['Row']> & {
+          bank_name: string
+          account_name: string
+          account_number: string
+        }
+        Update: Partial<Database['public']['Tables']['bank_accounts']['Row']>
+        Relationships: []
+      }
+      cash_accounts: {
+        Row: { id: string; restaurant_id: string; name: string; is_active: boolean; created_at: string; updated_at: string }
+        Insert: Partial<Database['public']['Tables']['cash_accounts']['Row']> & { restaurant_id: string; name: string }
+        Update: Partial<Database['public']['Tables']['cash_accounts']['Row']>
+        Relationships: []
+      }
+      expense_categories: {
+        Row: { id: string; name: string; is_head_office_only: boolean; is_active: boolean }
+        Insert: Partial<Database['public']['Tables']['expense_categories']['Row']> & { name: string }
+        Update: Partial<Database['public']['Tables']['expense_categories']['Row']>
+        Relationships: []
+      }
+      payment_vouchers: {
+        Row: {
+          id: string
+          voucher_number: string
+          restaurant_id: string
+          payee_type: 'supplier' | 'expense' | 'employee' | 'other'
+          supplier_id: string | null
+          expense_category_id: string | null
+          amount: number
+          payment_method: 'bank' | 'cash'
+          bank_account_id: string | null
+          cash_account_id: string | null
+          payment_reference: string | null
+          voucher_date: string
+          status: 'draft' | 'pending_approval' | 'approved' | 'rejected' | 'posted' | 'cancelled'
+          notes: string | null
+          created_by: string | null
+          approved_by: string | null
+          approved_at: string | null
+          posted_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['payment_vouchers']['Row']> & {
+          restaurant_id: string
+          payee_type: Database['public']['Tables']['payment_vouchers']['Row']['payee_type']
+          amount: number
+          payment_method: 'bank' | 'cash'
+          voucher_date: string
+        }
+        Update: Partial<Database['public']['Tables']['payment_vouchers']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'payment_vouchers_supplier_id_fkey'
+            columns: ['supplier_id']
+            isOneToOne: false
+            referencedRelation: 'suppliers'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'payment_vouchers_restaurant_id_fkey'
+            columns: ['restaurant_id']
+            isOneToOne: false
+            referencedRelation: 'restaurants'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      payment_voucher_items: {
+        Row: { id: string; payment_voucher_id: string; description: string; amount: number }
+        Insert: { id?: string; payment_voucher_id: string; description: string; amount: number }
+        Update: Partial<Database['public']['Tables']['payment_voucher_items']['Row']>
+        Relationships: []
+      }
+      supplier_payments: {
+        Row: {
+          id: string
+          payment_voucher_id: string
+          supplier_id: string
+          restaurant_id: string
+          amount: number
+          is_advance: boolean
+          payment_date: string
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['supplier_payments']['Row']> & {
+          payment_voucher_id: string
+          supplier_id: string
+          restaurant_id: string
+          amount: number
+        }
+        Update: Partial<Database['public']['Tables']['supplier_payments']['Row']>
+        Relationships: []
+      }
+      payment_allocations: {
+        Row: { id: string; supplier_payment_id: string; purchase_id: string; amount: number; created_at: string }
+        Insert: { id?: string; supplier_payment_id: string; purchase_id: string; amount: number }
+        Update: Partial<Database['public']['Tables']['payment_allocations']['Row']>
+        Relationships: []
+      }
     }
     Views: Record<string, never>
     Functions: {
@@ -415,6 +529,18 @@ export interface Database {
       }
       transition_sales_entry: {
         Args: { p_sales_entry_id: string; p_action: string }
+        Returns: undefined
+      }
+      save_payment_voucher_draft: {
+        Args: { payload: Json }
+        Returns: string
+      }
+      transition_payment_voucher: {
+        Args: { p_voucher_id: string; p_action: string; p_comment?: string | null }
+        Returns: undefined
+      }
+      post_payment_voucher: {
+        Args: { p_voucher_id: string; p_allocations?: Json }
         Returns: undefined
       }
     }
