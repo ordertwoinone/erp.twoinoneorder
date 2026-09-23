@@ -492,6 +492,56 @@ export interface Database {
         Update: Partial<Database['public']['Tables']['payment_allocations']['Row']>
         Relationships: []
       }
+      employees: {
+        Row: {
+          id: string
+          employee_code: string
+          full_name: string
+          job_title: string | null
+          joining_date: string | null
+          base_salary: number | null
+          employment_status: 'active' | 'on_leave' | 'terminated' | 'resigned'
+          current_restaurant_id: string | null
+          phone: string | null
+          email: string | null
+          emirates_id: string | null
+          passport_number: string | null
+          visa_expiry: string | null
+          emirates_id_expiry: string | null
+          is_shared_employee: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['employees']['Row']> & { employee_code: string; full_name: string }
+        Update: Partial<Database['public']['Tables']['employees']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'employees_current_restaurant_id_fkey'
+            columns: ['current_restaurant_id']
+            isOneToOne: false
+            referencedRelation: 'restaurants'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      employee_assignments: {
+        Row: {
+          id: string
+          employee_id: string
+          restaurant_id: string
+          starts_at: string
+          ends_at: string | null
+          assigned_by: string | null
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['employee_assignments']['Row']> & {
+          employee_id: string
+          restaurant_id: string
+          starts_at: string
+        }
+        Update: Partial<Database['public']['Tables']['employee_assignments']['Row']>
+        Relationships: []
+      }
     }
     Views: Record<string, never>
     Functions: {
@@ -541,6 +591,10 @@ export interface Database {
       }
       post_payment_voucher: {
         Args: { p_voucher_id: string; p_allocations?: Json }
+        Returns: undefined
+      }
+      transfer_employee: {
+        Args: { p_employee_id: string; p_new_restaurant_id: string; p_effective_date?: string }
         Returns: undefined
       }
     }

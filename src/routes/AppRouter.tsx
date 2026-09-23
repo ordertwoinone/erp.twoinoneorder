@@ -37,6 +37,8 @@ const moduleRoutes: ModuleRoute[] = [
   { path: '/payments/new', permission: 'payments.create', Component: lazy(() => import('@/modules/payments/pages/PaymentFormPage')) },
   { path: '/payments/:id', permission: 'payments.create', Component: lazy(() => import('@/modules/payments/pages/PaymentDetailPage')) },
   { path: '/payments/:id/edit', permission: 'payments.create', Component: lazy(() => import('@/modules/payments/pages/PaymentFormPage')) },
+
+  { path: '/employees', permission: 'employees.view', Component: lazy(() => import('@/modules/employees/pages/EmployeesListPage')) },
 ]
 
 // Routes that don't have a built module yet — rendered as a permission-gated
@@ -47,7 +49,6 @@ const comingSoonRoutes: { path: string; title: string; permission?: string }[] =
   { path: '/settlements', title: 'Settlements', permission: 'settlements.view' },
   { path: '/expenses', title: 'Expenses', permission: 'expenses.manage' },
   { path: '/accounting', title: 'Accounting', permission: 'accounting.view' },
-  { path: '/employees', title: 'Employees', permission: 'employees.view' },
   { path: '/payroll', title: 'Payroll', permission: 'payroll.view' },
   { path: '/inventory', title: 'Inventory', permission: 'inventory.manage' },
   { path: '/reports', title: 'Reports', permission: 'reports.view' },
