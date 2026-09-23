@@ -903,6 +903,66 @@ export interface Database {
           },
         ]
       }
+      accounting_accounts: {
+        Row: { id: string; code: string; name: string; account_type: string; parent_id: string | null; is_active: boolean }
+        Insert: { id?: string; code: string; name: string; account_type: string; parent_id?: string | null; is_active?: boolean }
+        Update: Partial<Database['public']['Tables']['accounting_accounts']['Row']>
+        Relationships: []
+      }
+      accounting_periods: {
+        Row: {
+          id: string
+          restaurant_id: string | null
+          period_month: string
+          status: 'open' | 'locked'
+          locked_by: string | null
+          locked_at: string | null
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['accounting_periods']['Row']> & { period_month: string }
+        Update: Partial<Database['public']['Tables']['accounting_periods']['Row']>
+        Relationships: []
+      }
+      journal_entries: {
+        Row: {
+          id: string
+          entry_number: string
+          restaurant_id: string
+          entry_date: string
+          status: 'posted' | 'reversed'
+          source_type: string
+          source_id: string | null
+          reversed_entry_id: string | null
+          description: string | null
+          created_by: string | null
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['journal_entries']['Row']> & { restaurant_id: string; entry_date: string; source_type: string }
+        Update: Partial<Database['public']['Tables']['journal_entries']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'journal_entries_restaurant_id_fkey'
+            columns: ['restaurant_id']
+            isOneToOne: false
+            referencedRelation: 'restaurants'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      journal_lines: {
+        Row: { id: string; journal_entry_id: string; accounting_account_id: string; debit_amount: number; credit_amount: number; memo: string | null }
+        Insert: Partial<Database['public']['Tables']['journal_lines']['Row']> & { journal_entry_id: string; accounting_account_id: string }
+        Update: Partial<Database['public']['Tables']['journal_lines']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'journal_lines_accounting_account_id_fkey'
+            columns: ['accounting_account_id']
+            isOneToOne: false
+            referencedRelation: 'accounting_accounts'
+            referencedColumns: ['id']
+          },
+        ]
+      }
     }
     Views: Record<string, never>
     Functions: {
@@ -1003,6 +1063,28 @@ export interface Database {
       create_card_settlement: {
         Args: { payload: Json }
         Returns: string
+      }
+      get_pnl_report: {
+        Args: { p_restaurant_id: string; p_period_start: string; p_period_end: string }
+        Returns: {
+          net_sales: number
+          opening_stock_value: number | null
+          purchases_value: number
+          closing_stock_value: number | null
+          transfers_net: number
+          cogs: number | null
+          gross_profit: number | null
+          salaries_total: number
+          opex_total: number
+          card_fees: number
+          delivery_commissions: number
+          net_profit: number | null
+          is_provisional: boolean
+        }[]
+      }
+      set_accounting_period_status: {
+        Args: { p_restaurant_id: string; p_period_month: string; p_status: string }
+        Returns: undefined
       }
     }
     Enums: Record<string, never>
