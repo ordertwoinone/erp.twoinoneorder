@@ -58,13 +58,14 @@ const moduleRoutes: ModuleRoute[] = [
   { path: '/inventory/transfers', permission: 'inventory.manage', Component: lazy(() => import('@/modules/inventory/pages/BranchTransfersListPage')) },
   { path: '/inventory/transfers/new', permission: 'inventory.manage', Component: lazy(() => import('@/modules/inventory/pages/BranchTransferFormPage')) },
   { path: '/inventory/transfers/:id', permission: 'inventory.manage', Component: lazy(() => import('@/modules/inventory/pages/BranchTransferDetailPage')) },
+
+  { path: '/settlements', permission: 'settlements.view', Component: lazy(() => import('@/modules/settlements/pages/SettlementsListPage')) },
 ]
 
 // Routes that don't have a built module yet — rendered as a permission-gated
 // placeholder instead of fake functionality (spec §56). Remove an entry once
 // its module is added to moduleRoutes above.
 const comingSoonRoutes: { path: string; title: string; permission?: string }[] = [
-  { path: '/settlements', title: 'Settlements', permission: 'settlements.view' },
   { path: '/accounting', title: 'Accounting', permission: 'accounting.view' },
   { path: '/reports', title: 'Reports', permission: 'reports.view' },
   { path: '/settings/users', title: 'Users', permission: 'users.manage' },

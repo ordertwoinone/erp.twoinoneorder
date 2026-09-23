@@ -781,6 +781,128 @@ export interface Database {
           },
         ]
       }
+      card_machines: {
+        Row: {
+          id: string
+          machine_name: string
+          terminal_id: string
+          provider: string
+          linked_bank_account_id: string | null
+          status: 'active' | 'inactive' | 'retired'
+          created_at: string
+          updated_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['card_machines']['Row']> & { machine_name: string; terminal_id: string; provider: string }
+        Update: Partial<Database['public']['Tables']['card_machines']['Row']>
+        Relationships: []
+      }
+      card_settlements: {
+        Row: {
+          id: string
+          card_machine_id: string
+          bank_account_id: string
+          credit_date: string
+          bank_reference: string | null
+          amount: number
+          status: 'unmatched' | 'partially_matched' | 'matched' | 'disputed'
+          notes: string | null
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['card_settlements']['Row']> & {
+          card_machine_id: string
+          bank_account_id: string
+          credit_date: string
+          amount: number
+        }
+        Update: Partial<Database['public']['Tables']['card_settlements']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'card_settlements_card_machine_id_fkey'
+            columns: ['card_machine_id']
+            isOneToOne: false
+            referencedRelation: 'card_machines'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      card_settlement_allocations: {
+        Row: {
+          id: string
+          card_settlement_id: string
+          restaurant_id: string
+          amount: number
+          covers_from: string
+          covers_to: string
+        }
+        Insert: Partial<Database['public']['Tables']['card_settlement_allocations']['Row']> & {
+          card_settlement_id: string
+          restaurant_id: string
+          amount: number
+          covers_from: string
+          covers_to: string
+        }
+        Update: Partial<Database['public']['Tables']['card_settlement_allocations']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'card_settlement_allocations_restaurant_id_fkey'
+            columns: ['restaurant_id']
+            isOneToOne: false
+            referencedRelation: 'restaurants'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      delivery_platforms: {
+        Row: { id: string; code: string; name: string; integration_status: string; is_active: boolean; created_at: string }
+        Insert: { id?: string; code: string; name: string; integration_status?: string; is_active?: boolean }
+        Update: Partial<Database['public']['Tables']['delivery_platforms']['Row']>
+        Relationships: []
+      }
+      delivery_settlements: {
+        Row: {
+          id: string
+          delivery_platform_id: string
+          restaurant_id: string
+          bank_account_id: string | null
+          credit_date: string
+          bank_reference: string | null
+          amount: number
+          covers_from: string
+          covers_to: string
+          status: 'unmatched' | 'partially_matched' | 'matched' | 'disputed'
+          notes: string | null
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['delivery_settlements']['Row']> & {
+          delivery_platform_id: string
+          restaurant_id: string
+          credit_date: string
+          amount: number
+          covers_from: string
+          covers_to: string
+        }
+        Update: Partial<Database['public']['Tables']['delivery_settlements']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'delivery_settlements_delivery_platform_id_fkey'
+            columns: ['delivery_platform_id']
+            isOneToOne: false
+            referencedRelation: 'delivery_platforms'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'delivery_settlements_restaurant_id_fkey'
+            columns: ['restaurant_id']
+            isOneToOne: false
+            referencedRelation: 'restaurants'
+            referencedColumns: ['id']
+          },
+        ]
+      }
     }
     Views: Record<string, never>
     Functions: {
@@ -877,6 +999,10 @@ export interface Database {
       receive_branch_transfer: {
         Args: { p_transfer_id: string }
         Returns: undefined
+      }
+      create_card_settlement: {
+        Args: { payload: Json }
+        Returns: string
       }
     }
     Enums: Record<string, never>
