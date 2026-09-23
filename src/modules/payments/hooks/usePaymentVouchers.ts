@@ -32,28 +32,21 @@ export function usePaymentVoucherQuery(id: string | undefined) {
     queryKey: ['payment-vouchers', 'detail', id],
     enabled: !!id,
     queryFn: async () => {
-      const { data: voucher, error } = await supabase
-        .from('payment_vouchers')
-        .select('*, suppliers(name), restaurants(name)')
-        .eq('id', id!)
-        .single()
-      if (error) throw error
+      const [voucherRes, itemsRes, approvalsRes] = await Promise.all([
+        supabase.from('payment_vouchers').select('*, suppliers(name), restaurants(name)').eq('id', id!).single(),
+        supabase.from('payment_voucher_items').select('*').eq('payment_voucher_id', id!),
+        supabase
+          .from('approvals')
+          .select('*, profiles(full_name)')
+          .eq('entity_type', 'payment_voucher')
+          .eq('entity_id', id!)
+          .order('created_at', { ascending: false }),
+      ])
+      if (voucherRes.error) throw voucherRes.error
+      if (itemsRes.error) throw itemsRes.error
+      if (approvalsRes.error) throw approvalsRes.error
 
-      const { data: items, error: itemsError } = await supabase
-        .from('payment_voucher_items')
-        .select('*')
-        .eq('payment_voucher_id', id!)
-      if (itemsError) throw itemsError
-
-      const { data: approvals, error: approvalsError } = await supabase
-        .from('approvals')
-        .select('*, profiles(full_name)')
-        .eq('entity_type', 'payment_voucher')
-        .eq('entity_id', id!)
-        .order('created_at', { ascending: false })
-      if (approvalsError) throw approvalsError
-
-      return { voucher, items, approvals }
+      return { voucher: voucherRes.data, items: itemsRes.data, approvals: approvalsRes.data }
     },
   })
 }
@@ -62,12 +55,13 @@ export function usePaymentVoucherQuery(id: string | undefined) {
 export function useUnpaidPurchasesQuery(supplierId: string | undefined, restaurantId: string | undefined) {
   return useQuery({
     queryKey: ['purchases', 'unpaid', supplierId, restaurantId],
-    enabled: !!supplierId,
+    enabled: !!supplierId && !!restaurantId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('purchases')
         .select('id, purchase_number, invoice_number, total_amount, paid_amount, payment_status')
         .eq('supplier_id', supplierId!)
+        .eq('restaurant_id', restaurantId!)
         .eq('status', 'posted')
         .in('payment_status', ['unpaid', 'partially_paid'])
         .order('invoice_date')

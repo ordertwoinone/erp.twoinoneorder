@@ -32,21 +32,14 @@ export function useSalaryEntryQuery(id: string | undefined) {
     queryKey: ['salary-entries', 'detail', id],
     enabled: !!id,
     queryFn: async () => {
-      const { data: entry, error } = await supabase
-        .from('salary_entries')
-        .select('*, employees(full_name, employee_code), restaurants(name)')
-        .eq('id', id!)
-        .single()
-      if (error) throw error
+      const [entryRes, paymentsRes] = await Promise.all([
+        supabase.from('salary_entries').select('*, employees(full_name, employee_code), restaurants(name)').eq('id', id!).single(),
+        supabase.from('salary_payments').select('*').eq('salary_entry_id', id!).order('payment_date', { ascending: false }),
+      ])
+      if (entryRes.error) throw entryRes.error
+      if (paymentsRes.error) throw paymentsRes.error
 
-      const { data: payments, error: paymentsError } = await supabase
-        .from('salary_payments')
-        .select('*')
-        .eq('salary_entry_id', id!)
-        .order('payment_date', { ascending: false })
-      if (paymentsError) throw paymentsError
-
-      return { entry, payments }
+      return { entry: entryRes.data, payments: paymentsRes.data }
     },
   })
 }

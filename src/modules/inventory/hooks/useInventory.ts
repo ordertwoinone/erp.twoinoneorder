@@ -36,22 +36,20 @@ export function useBranchTransferQuery(id: string | undefined) {
     queryKey: ['branch-transfers', 'detail', id],
     enabled: !!id,
     queryFn: async () => {
-      const { data: transfer, error } = await supabase
-        .from('branch_transfers')
-        .select(
-          '*, from:restaurants!branch_transfers_from_restaurant_id_fkey(name), to:restaurants!branch_transfers_to_restaurant_id_fkey(name)',
-        )
-        .eq('id', id!)
-        .single()
-      if (error) throw error
+      const [transferRes, itemsRes] = await Promise.all([
+        supabase
+          .from('branch_transfers')
+          .select(
+            '*, from:restaurants!branch_transfers_from_restaurant_id_fkey(name), to:restaurants!branch_transfers_to_restaurant_id_fkey(name)',
+          )
+          .eq('id', id!)
+          .single(),
+        supabase.from('branch_transfer_items').select('*, products(name), units(code)').eq('branch_transfer_id', id!),
+      ])
+      if (transferRes.error) throw transferRes.error
+      if (itemsRes.error) throw itemsRes.error
 
-      const { data: items, error: itemsError } = await supabase
-        .from('branch_transfer_items')
-        .select('*, products(name), units(code)')
-        .eq('branch_transfer_id', id!)
-      if (itemsError) throw itemsError
-
-      return { transfer, items }
+      return { transfer: transferRes.data, items: itemsRes.data }
     },
   })
 }

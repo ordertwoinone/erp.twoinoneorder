@@ -80,7 +80,7 @@ export default function ExpenseFormPage() {
                 control={control}
                 name="restaurant_id"
                 render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
+                  <Select value={field.value} onValueChange={field.onChange} disabled={isEditing}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select restaurant" />
                     </SelectTrigger>

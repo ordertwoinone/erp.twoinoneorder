@@ -33,20 +33,14 @@ export function usePurchaseRequestQuery(id: string | undefined) {
     queryKey: ['purchase-requests', 'detail', id],
     enabled: !!id,
     queryFn: async () => {
-      const { data: request, error } = await supabase
-        .from('purchase_requests')
-        .select('*, restaurants(name)')
-        .eq('id', id!)
-        .single()
-      if (error) throw error
+      const [requestRes, itemsRes] = await Promise.all([
+        supabase.from('purchase_requests').select('*, restaurants(name)').eq('id', id!).single(),
+        supabase.from('purchase_request_items').select('*, products(name), units(code)').eq('purchase_request_id', id!),
+      ])
+      if (requestRes.error) throw requestRes.error
+      if (itemsRes.error) throw itemsRes.error
 
-      const { data: items, error: itemsError } = await supabase
-        .from('purchase_request_items')
-        .select('*, products(name), units(code)')
-        .eq('purchase_request_id', id!)
-      if (itemsError) throw itemsError
-
-      return { request, items }
+      return { request: requestRes.data, items: itemsRes.data }
     },
   })
 }

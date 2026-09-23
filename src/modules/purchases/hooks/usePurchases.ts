@@ -47,28 +47,21 @@ export function usePurchaseQuery(id: string | undefined) {
     queryKey: ['purchases', 'detail', id],
     enabled: !!id,
     queryFn: async () => {
-      const { data: purchase, error } = await supabase
-        .from('purchases')
-        .select('*, restaurants(name), suppliers(name)')
-        .eq('id', id!)
-        .single()
-      if (error) throw error
+      const [purchaseRes, itemsRes, approvalsRes] = await Promise.all([
+        supabase.from('purchases').select('*, restaurants(name), suppliers(name)').eq('id', id!).single(),
+        supabase.from('purchase_items').select('*, products(name, sku), units(name, code)').eq('purchase_id', id!),
+        supabase
+          .from('approvals')
+          .select('*, profiles(full_name)')
+          .eq('entity_type', 'purchase')
+          .eq('entity_id', id!)
+          .order('created_at', { ascending: false }),
+      ])
+      if (purchaseRes.error) throw purchaseRes.error
+      if (itemsRes.error) throw itemsRes.error
+      if (approvalsRes.error) throw approvalsRes.error
 
-      const { data: items, error: itemsError } = await supabase
-        .from('purchase_items')
-        .select('*, products(name, sku), units(name, code)')
-        .eq('purchase_id', id!)
-      if (itemsError) throw itemsError
-
-      const { data: approvals, error: approvalsError } = await supabase
-        .from('approvals')
-        .select('*, profiles(full_name)')
-        .eq('entity_type', 'purchase')
-        .eq('entity_id', id!)
-        .order('created_at', { ascending: false })
-      if (approvalsError) throw approvalsError
-
-      return { purchase, items, approvals }
+      return { purchase: purchaseRes.data, items: itemsRes.data, approvals: approvalsRes.data }
     },
   })
 }

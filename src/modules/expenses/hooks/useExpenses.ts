@@ -32,22 +32,19 @@ export function useExpenseQuery(id: string | undefined) {
     queryKey: ['expenses', 'detail', id],
     enabled: !!id,
     queryFn: async () => {
-      const { data: expense, error } = await supabase
-        .from('operating_expenses')
-        .select('*, expense_categories(name), restaurants(name)')
-        .eq('id', id!)
-        .single()
-      if (error) throw error
+      const [expenseRes, approvalsRes] = await Promise.all([
+        supabase.from('operating_expenses').select('*, expense_categories(name), restaurants(name)').eq('id', id!).single(),
+        supabase
+          .from('approvals')
+          .select('*, profiles(full_name)')
+          .eq('entity_type', 'operating_expense')
+          .eq('entity_id', id!)
+          .order('created_at', { ascending: false }),
+      ])
+      if (expenseRes.error) throw expenseRes.error
+      if (approvalsRes.error) throw approvalsRes.error
 
-      const { data: approvals, error: approvalsError } = await supabase
-        .from('approvals')
-        .select('*, profiles(full_name)')
-        .eq('entity_type', 'operating_expense')
-        .eq('entity_id', id!)
-        .order('created_at', { ascending: false })
-      if (approvalsError) throw approvalsError
-
-      return { expense, approvals }
+      return { expense: expenseRes.data, approvals: approvalsRes.data }
     },
   })
 }

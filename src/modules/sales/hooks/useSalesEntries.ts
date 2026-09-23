@@ -32,16 +32,14 @@ export function useSalesEntryQuery(id: string | undefined) {
     queryKey: ['sales-entries', 'detail', id],
     enabled: !!id,
     queryFn: async () => {
-      const { data: entry, error } = await supabase.from('sales_entries').select('*').eq('id', id!).single()
-      if (error) throw error
+      const [entryRes, breakdownsRes] = await Promise.all([
+        supabase.from('sales_entries').select('*').eq('id', id!).single(),
+        supabase.from('sales_payment_breakdowns').select('*, payment_methods(name), sales_channels(name)').eq('sales_entry_id', id!),
+      ])
+      if (entryRes.error) throw entryRes.error
+      if (breakdownsRes.error) throw breakdownsRes.error
 
-      const { data: breakdowns, error: breakdownsError } = await supabase
-        .from('sales_payment_breakdowns')
-        .select('*, payment_methods(name), sales_channels(name)')
-        .eq('sales_entry_id', id!)
-      if (breakdownsError) throw breakdownsError
-
-      return { entry, breakdowns }
+      return { entry: entryRes.data, breakdowns: breakdownsRes.data }
     },
   })
 }
