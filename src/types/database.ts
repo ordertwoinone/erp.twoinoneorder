@@ -150,6 +150,60 @@ export interface Database {
         Update: Partial<Database['public']['Tables']['suppliers']['Row']>
         Relationships: []
       }
+      supplier_price_locks: {
+        Row: {
+          id: string
+          supplier_id: string
+          product_id: string
+          unit_id: string
+          pack_size: number | null
+          agreed_price: number
+          valid_from: string
+          valid_to: string | null
+          source_quotation_id: string | null
+          is_current: boolean
+          created_by: string | null
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['supplier_price_locks']['Row']> & {
+          supplier_id: string
+          product_id: string
+          unit_id: string
+          agreed_price: number
+          valid_from: string
+        }
+        Update: Partial<Database['public']['Tables']['supplier_price_locks']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'supplier_price_locks_product_id_fkey'
+            columns: ['product_id']
+            isOneToOne: false
+            referencedRelation: 'products'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'supplier_price_locks_unit_id_fkey'
+            columns: ['unit_id']
+            isOneToOne: false
+            referencedRelation: 'units'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      supplier_price_lock_restaurants: {
+        Row: { price_lock_id: string; restaurant_id: string }
+        Insert: { price_lock_id: string; restaurant_id: string }
+        Update: Partial<Database['public']['Tables']['supplier_price_lock_restaurants']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'supplier_price_lock_restaurants_restaurant_id_fkey'
+            columns: ['restaurant_id']
+            isOneToOne: false
+            referencedRelation: 'restaurants'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       exchange_rates: {
         Row: { currency_code: string; rate_to_aed: number; updated_by: string | null; updated_at: string }
         Insert: { currency_code: string; rate_to_aed: number; updated_by?: string | null }
@@ -972,6 +1026,93 @@ export interface Database {
           },
         ]
       }
+      attachments: {
+        Row: {
+          id: string
+          restaurant_id: string | null
+          entity_type: string
+          entity_id: string
+          category: string
+          storage_bucket: string
+          storage_path: string
+          file_name: string
+          mime_type: string
+          file_size_bytes: number
+          uploaded_by: string | null
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['attachments']['Row']> & {
+          entity_type: string
+          entity_id: string
+          category: string
+          storage_bucket: string
+          storage_path: string
+          file_name: string
+          mime_type: string
+          file_size_bytes: number
+        }
+        Update: Partial<Database['public']['Tables']['attachments']['Row']>
+        Relationships: []
+      }
+      ai_scan_jobs: {
+        Row: {
+          id: string
+          restaurant_id: string | null
+          supplier_id: string | null
+          job_type: 'invoice' | 'labour_list' | 'sales_document' | 'quotation'
+          status: 'queued' | 'processing' | 'completed' | 'failed' | 'reviewed'
+          attachment_id: string | null
+          error_message: string | null
+          uploaded_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['ai_scan_jobs']['Row']> & {
+          job_type: Database['public']['Tables']['ai_scan_jobs']['Row']['job_type']
+        }
+        Update: Partial<Database['public']['Tables']['ai_scan_jobs']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'ai_scan_jobs_attachment_id_fkey'
+            columns: ['attachment_id']
+            isOneToOne: false
+            referencedRelation: 'attachments'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'ai_scan_jobs_supplier_id_fkey'
+            columns: ['supplier_id']
+            isOneToOne: false
+            referencedRelation: 'suppliers'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      ai_scan_results: {
+        Row: {
+          id: string
+          ai_scan_job_id: string
+          raw_response: Json
+          parsed_data: Json | null
+          review_status: 'pending_review' | 'confirmed' | 'discarded'
+          reviewed_by: string | null
+          reviewed_at: string | null
+          resulting_entity_type: 'purchase' | 'employee' | 'sales_entry' | 'price_lock' | null
+          resulting_entity_id: string | null
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['ai_scan_results']['Row']> & { ai_scan_job_id: string }
+        Update: Partial<Database['public']['Tables']['ai_scan_results']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'ai_scan_results_ai_scan_job_id_fkey'
+            columns: ['ai_scan_job_id']
+            isOneToOne: false
+            referencedRelation: 'ai_scan_jobs'
+            referencedColumns: ['id']
+          },
+        ]
+      }
     }
     Views: Record<string, never>
     Functions: {
@@ -1097,6 +1238,28 @@ export interface Database {
       }
       set_exchange_rate: {
         Args: { p_currency_code: string; p_rate_to_aed: number }
+        Returns: undefined
+      }
+      create_quotation_scan_job: {
+        Args: {
+          p_supplier_id: string
+          p_storage_path: string
+          p_file_name: string
+          p_mime_type: string
+          p_file_size_bytes: number
+        }
+        Returns: string
+      }
+      quick_create_product: {
+        Args: { p_name: string; p_base_unit_id: string; p_sku?: string | null }
+        Returns: string
+      }
+      save_price_lock: {
+        Args: { payload: Json }
+        Returns: string
+      }
+      confirm_supplier_price_locks: {
+        Args: { p_scan_result_id: string; p_items: Json }
         Returns: undefined
       }
     }

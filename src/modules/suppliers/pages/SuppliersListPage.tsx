@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Plus, Search } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Badge } from '@/components/ui/badge'
@@ -26,9 +27,9 @@ interface SupplierRow {
 export default function SuppliersListPage() {
   const { hasPermission } = useAuth()
   const canManage = hasPermission('suppliers.manage')
+  const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [pageIndex, setPageIndex] = useState(0)
-  const [editingId, setEditingId] = useState<string | undefined>(undefined)
   const [createOpen, setCreateOpen] = useState(false)
 
   const { data, isLoading } = useSuppliersQuery({ search, pageIndex })
@@ -94,7 +95,7 @@ export default function SuppliersListPage() {
         data={data?.rows ?? []}
         isLoading={isLoading}
         emptyMessage="No suppliers yet."
-        onRowClick={canManage ? (row) => setEditingId(row.id) : undefined}
+        onRowClick={(row) => navigate(`/suppliers/${row.id}`)}
         pagination={{
           pageIndex,
           pageSize: SUPPLIERS_PAGE_SIZE,
@@ -104,11 +105,6 @@ export default function SuppliersListPage() {
       />
 
       <SupplierFormDialog open={createOpen} onOpenChange={setCreateOpen} />
-      <SupplierFormDialog
-        supplierId={editingId}
-        open={!!editingId}
-        onOpenChange={(open) => !open && setEditingId(undefined)}
-      />
     </div>
   )
 }

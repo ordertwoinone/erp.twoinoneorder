@@ -22,6 +22,7 @@ interface ModuleRoute {
 // change for a new module's routes.
 const moduleRoutes: ModuleRoute[] = [
   { path: '/suppliers', permission: 'suppliers.manage', Component: lazy(() => import('@/modules/suppliers/pages/SuppliersListPage')) },
+  { path: '/suppliers/:id', permission: 'suppliers.manage', Component: lazy(() => import('@/modules/suppliers/pages/SupplierDetailPage')) },
 
   { path: '/purchases', permission: 'purchases.create', Component: lazy(() => import('@/modules/purchases/pages/PurchasesListPage')) },
   { path: '/purchases/new', permission: 'purchases.create', Component: lazy(() => import('@/modules/purchases/pages/PurchaseFormPage')) },
