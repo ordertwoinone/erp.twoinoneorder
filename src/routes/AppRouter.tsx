@@ -28,6 +28,10 @@ const moduleRoutes: ModuleRoute[] = [
   { path: '/purchases/:id', permission: 'purchases.create', Component: lazy(() => import('@/modules/purchases/pages/PurchaseDetailPage')) },
   { path: '/purchases/:id/edit', permission: 'purchases.create', Component: lazy(() => import('@/modules/purchases/pages/PurchaseFormPage')) },
 
+  { path: '/purchases/requests', permission: 'purchases.create', Component: lazy(() => import('@/modules/purchase-requests/pages/PurchaseRequestsListPage')) },
+  { path: '/purchases/requests/new', permission: 'purchases.create', Component: lazy(() => import('@/modules/purchase-requests/pages/PurchaseRequestFormPage')) },
+  { path: '/purchases/requests/:id', permission: 'purchases.create', Component: lazy(() => import('@/modules/purchase-requests/pages/PurchaseRequestDetailPage')) },
+
   { path: '/sales', permission: 'sales.create', Component: lazy(() => import('@/modules/sales/pages/SalesListPage')) },
   { path: '/sales/new', permission: 'sales.create', Component: lazy(() => import('@/modules/sales/pages/SalesFormPage')) },
   { path: '/sales/:id', permission: 'sales.create', Component: lazy(() => import('@/modules/sales/pages/SalesDetailPage')) },
@@ -55,7 +59,6 @@ const moduleRoutes: ModuleRoute[] = [
 // placeholder instead of fake functionality (spec §56). Remove an entry once
 // its module is added to moduleRoutes above.
 const comingSoonRoutes: { path: string; title: string; permission?: string }[] = [
-  { path: '/purchases/requests', title: 'Purchase Requests', permission: 'purchases.create' },
   { path: '/settlements', title: 'Settlements', permission: 'settlements.view' },
   { path: '/accounting', title: 'Accounting', permission: 'accounting.view' },
   { path: '/inventory', title: 'Inventory', permission: 'inventory.manage' },

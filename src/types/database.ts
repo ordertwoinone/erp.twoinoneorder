@@ -645,6 +645,57 @@ export interface Database {
         Update: Partial<Database['public']['Tables']['salary_payments']['Row']>
         Relationships: []
       }
+      purchase_requests: {
+        Row: {
+          id: string
+          request_number: string
+          restaurant_id: string
+          status: 'requested' | 'under_review' | 'approved' | 'rejected' | 'ordered' | 'received' | 'invoiced' | 'cancelled'
+          notes: string | null
+          requested_by: string | null
+          reviewed_by: string | null
+          requested_at: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['purchase_requests']['Row']> & { restaurant_id: string }
+        Update: Partial<Database['public']['Tables']['purchase_requests']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'purchase_requests_restaurant_id_fkey'
+            columns: ['restaurant_id']
+            isOneToOne: false
+            referencedRelation: 'restaurants'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      purchase_request_items: {
+        Row: { id: string; purchase_request_id: string; product_id: string; unit_id: string; quantity: number; notes: string | null }
+        Insert: Partial<Database['public']['Tables']['purchase_request_items']['Row']> & {
+          purchase_request_id: string
+          product_id: string
+          unit_id: string
+          quantity: number
+        }
+        Update: Partial<Database['public']['Tables']['purchase_request_items']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'purchase_request_items_product_id_fkey'
+            columns: ['product_id']
+            isOneToOne: false
+            referencedRelation: 'products'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'purchase_request_items_unit_id_fkey'
+            columns: ['unit_id']
+            isOneToOne: false
+            referencedRelation: 'units'
+            referencedColumns: ['id']
+          },
+        ]
+      }
     }
     Views: Record<string, never>
     Functions: {
@@ -724,6 +775,14 @@ export interface Database {
           p_bank_account_id?: string | null
           p_cash_account_id?: string | null
         }
+        Returns: undefined
+      }
+      save_purchase_request: {
+        Args: { payload: Json }
+        Returns: string
+      }
+      review_purchase_request: {
+        Args: { p_request_id: string; p_action: string; p_comment?: string | null }
         Returns: undefined
       }
     }
