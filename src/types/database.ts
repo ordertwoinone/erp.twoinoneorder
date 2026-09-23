@@ -126,6 +126,182 @@ export interface Database {
         Update: Partial<Database['public']['Tables']['user_restaurants']['Row']>
         Relationships: []
       }
+      suppliers: {
+        Row: {
+          id: string
+          code: string
+          name: string
+          trn: string | null
+          payment_terms_days: number
+          bank_name: string | null
+          bank_account_name: string | null
+          bank_account_number: string | null
+          bank_iban: string | null
+          bank_swift: string | null
+          is_active: boolean
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['suppliers']['Row']> & { code: string; name: string }
+        Update: Partial<Database['public']['Tables']['suppliers']['Row']>
+        Relationships: []
+      }
+      categories: {
+        Row: { id: string; name: string; parent_id: string | null; is_active: boolean; created_at: string; updated_at: string }
+        Insert: Partial<Database['public']['Tables']['categories']['Row']> & { name: string }
+        Update: Partial<Database['public']['Tables']['categories']['Row']>
+        Relationships: []
+      }
+      brands: {
+        Row: { id: string; name: string; is_active: boolean; created_at: string }
+        Insert: Partial<Database['public']['Tables']['brands']['Row']> & { name: string }
+        Update: Partial<Database['public']['Tables']['brands']['Row']>
+        Relationships: []
+      }
+      units: {
+        Row: { id: string; code: string; name: string }
+        Insert: { id?: string; code: string; name: string }
+        Update: Partial<Database['public']['Tables']['units']['Row']>
+        Relationships: []
+      }
+      products: {
+        Row: {
+          id: string
+          sku: string | null
+          name: string
+          description: string | null
+          category_id: string | null
+          brand_id: string | null
+          base_unit_id: string
+          pack_size: number | null
+          pack_unit_id: string | null
+          is_active: boolean
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['products']['Row']> & { name: string; base_unit_id: string }
+        Update: Partial<Database['public']['Tables']['products']['Row']>
+        Relationships: []
+      }
+      purchases: {
+        Row: {
+          id: string
+          purchase_number: string
+          restaurant_id: string
+          supplier_id: string
+          purchase_order_id: string | null
+          invoice_number: string
+          invoice_date: string
+          status: 'draft' | 'pending_approval' | 'returned' | 'rejected' | 'approved' | 'posted' | 'cancelled'
+          payment_status: 'unpaid' | 'partially_paid' | 'paid' | 'overpaid'
+          source: 'manual' | 'ai_scan'
+          ai_scan_job_id: string | null
+          subtotal_amount: number
+          discount_amount: number
+          tax_amount: number
+          total_amount: number
+          paid_amount: number
+          notes: string | null
+          created_by: string | null
+          approved_by: string | null
+          approved_at: string | null
+          posted_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['purchases']['Row']> & {
+          restaurant_id: string
+          supplier_id: string
+          invoice_number: string
+          invoice_date: string
+        }
+        Update: Partial<Database['public']['Tables']['purchases']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'purchases_restaurant_id_fkey'
+            columns: ['restaurant_id']
+            isOneToOne: false
+            referencedRelation: 'restaurants'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'purchases_supplier_id_fkey'
+            columns: ['supplier_id']
+            isOneToOne: false
+            referencedRelation: 'suppliers'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      purchase_items: {
+        Row: {
+          id: string
+          purchase_id: string
+          product_id: string
+          unit_id: string
+          pack_size: number | null
+          quantity: number
+          unit_price: number
+          discount_amount: number
+          tax_amount: number
+          line_total: number
+          agreed_price_at_entry: number | null
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['purchase_items']['Row']> & {
+          purchase_id: string
+          product_id: string
+          unit_id: string
+          quantity: number
+          unit_price: number
+          line_total: number
+        }
+        Update: Partial<Database['public']['Tables']['purchase_items']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'purchase_items_product_id_fkey'
+            columns: ['product_id']
+            isOneToOne: false
+            referencedRelation: 'products'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'purchase_items_unit_id_fkey'
+            columns: ['unit_id']
+            isOneToOne: false
+            referencedRelation: 'units'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      approvals: {
+        Row: {
+          id: string
+          entity_type: string
+          entity_id: string
+          action: 'submitted' | 'approved' | 'rejected' | 'returned' | 'commented' | 'posted' | 'reversed'
+          comment: string | null
+          actor_id: string | null
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['approvals']['Row']> & {
+          entity_type: string
+          entity_id: string
+          action: Database['public']['Tables']['approvals']['Row']['action']
+        }
+        Update: Partial<Database['public']['Tables']['approvals']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'approvals_actor_id_fkey'
+            columns: ['actor_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
     }
     Views: Record<string, never>
     Functions: {
@@ -144,6 +320,18 @@ export interface Database {
           role_keys: string[]
           permission_keys: string[]
         }[]
+      }
+      save_purchase_draft: {
+        Args: { payload: Json }
+        Returns: string
+      }
+      transition_purchase: {
+        Args: { p_purchase_id: string; p_action: string; p_comment?: string | null }
+        Returns: undefined
+      }
+      post_purchase: {
+        Args: { p_purchase_id: string }
+        Returns: undefined
       }
     }
     Enums: Record<string, never>

@@ -11,10 +11,16 @@ const ResetPasswordPage = lazy(() => import('@/modules/auth/pages/ResetPasswordP
 const DashboardPage = lazy(() => import('@/modules/dashboard/pages/DashboardPage'))
 const NotFoundPage = lazy(() => import('@/modules/dashboard/pages/NotFoundPage'))
 
-const moduleRoutes: { path: string; title: string; permission?: string }[] = [
-  { path: '/purchases', title: 'Purchases', permission: 'purchases.create' },
+const SuppliersListPage = lazy(() => import('@/modules/suppliers/pages/SuppliersListPage'))
+
+const PurchasesListPage = lazy(() => import('@/modules/purchases/pages/PurchasesListPage'))
+const PurchaseFormPage = lazy(() => import('@/modules/purchases/pages/PurchaseFormPage'))
+const PurchaseDetailPage = lazy(() => import('@/modules/purchases/pages/PurchaseDetailPage'))
+
+// Routes that don't have a built module yet — rendered as a permission-gated
+// placeholder instead of fake functionality (spec §56).
+const comingSoonRoutes: { path: string; title: string; permission?: string }[] = [
   { path: '/purchases/requests', title: 'Purchase Requests', permission: 'purchases.create' },
-  { path: '/suppliers', title: 'Suppliers', permission: 'suppliers.manage' },
   { path: '/sales', title: 'Sales Entry', permission: 'sales.create' },
   { path: '/settlements', title: 'Settlements', permission: 'settlements.view' },
   { path: '/payments', title: 'Payments', permission: 'payments.create' },
@@ -45,7 +51,50 @@ export function AppRouter() {
             }
           >
             <Route index element={<DashboardPage />} />
-            {moduleRoutes.map(({ path, title, permission }) => (
+
+            <Route
+              path="/suppliers"
+              element={
+                <RequirePermission permission="suppliers.manage">
+                  <SuppliersListPage />
+                </RequirePermission>
+              }
+            />
+
+            <Route
+              path="/purchases"
+              element={
+                <RequirePermission permission="purchases.create">
+                  <PurchasesListPage />
+                </RequirePermission>
+              }
+            />
+            <Route
+              path="/purchases/new"
+              element={
+                <RequirePermission permission="purchases.create">
+                  <PurchaseFormPage />
+                </RequirePermission>
+              }
+            />
+            <Route
+              path="/purchases/:id"
+              element={
+                <RequirePermission permission="purchases.create">
+                  <PurchaseDetailPage />
+                </RequirePermission>
+              }
+            />
+            <Route
+              path="/purchases/:id/edit"
+              element={
+                <RequirePermission permission="purchases.create">
+                  <PurchaseFormPage />
+                </RequirePermission>
+              }
+            />
+
+            {comingSoonRoutes.map(({ path, title, permission }) => (
               <Route
                 key={path}
                 path={path}
