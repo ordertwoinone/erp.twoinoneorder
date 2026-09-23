@@ -696,6 +696,91 @@ export interface Database {
           },
         ]
       }
+      stock_balances: {
+        Row: { restaurant_id: string; product_id: string; quantity_on_hand: number; average_cost: number; updated_at: string }
+        Insert: { restaurant_id: string; product_id: string; quantity_on_hand?: number; average_cost?: number }
+        Update: Partial<Database['public']['Tables']['stock_balances']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'stock_balances_product_id_fkey'
+            columns: ['product_id']
+            isOneToOne: false
+            referencedRelation: 'products'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      branch_transfers: {
+        Row: {
+          id: string
+          transfer_number: string
+          from_restaurant_id: string
+          to_restaurant_id: string
+          status: 'dispatched' | 'in_transit' | 'received' | 'cancelled'
+          dispatch_date: string
+          received_date: string | null
+          dispatched_by: string | null
+          received_by: string | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['branch_transfers']['Row']> & {
+          from_restaurant_id: string
+          to_restaurant_id: string
+        }
+        Update: Partial<Database['public']['Tables']['branch_transfers']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'branch_transfers_from_restaurant_id_fkey'
+            columns: ['from_restaurant_id']
+            isOneToOne: false
+            referencedRelation: 'restaurants'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'branch_transfers_to_restaurant_id_fkey'
+            columns: ['to_restaurant_id']
+            isOneToOne: false
+            referencedRelation: 'restaurants'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      branch_transfer_items: {
+        Row: {
+          id: string
+          branch_transfer_id: string
+          product_id: string
+          unit_id: string
+          quantity: number
+          unit_cost: number
+        }
+        Insert: Partial<Database['public']['Tables']['branch_transfer_items']['Row']> & {
+          branch_transfer_id: string
+          product_id: string
+          unit_id: string
+          quantity: number
+          unit_cost: number
+        }
+        Update: Partial<Database['public']['Tables']['branch_transfer_items']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'branch_transfer_items_product_id_fkey'
+            columns: ['product_id']
+            isOneToOne: false
+            referencedRelation: 'products'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'branch_transfer_items_unit_id_fkey'
+            columns: ['unit_id']
+            isOneToOne: false
+            referencedRelation: 'units'
+            referencedColumns: ['id']
+          },
+        ]
+      }
     }
     Views: Record<string, never>
     Functions: {
@@ -783,6 +868,14 @@ export interface Database {
       }
       review_purchase_request: {
         Args: { p_request_id: string; p_action: string; p_comment?: string | null }
+        Returns: undefined
+      }
+      create_branch_transfer: {
+        Args: { payload: Json }
+        Returns: string
+      }
+      receive_branch_transfer: {
+        Args: { p_transfer_id: string }
         Returns: undefined
       }
     }
