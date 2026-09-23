@@ -582,6 +582,69 @@ export interface Database {
           },
         ]
       }
+      salary_entries: {
+        Row: {
+          id: string
+          employee_id: string
+          restaurant_id: string
+          period_month: string
+          basic_salary: number
+          allowances_total: number
+          overtime_amount: number
+          deductions_total: number
+          advances_deducted: number
+          net_salary: number
+          payment_status: 'pending' | 'partially_paid' | 'paid'
+          status: 'draft' | 'pending_approval' | 'approved' | 'posted' | 'cancelled'
+          created_by: string | null
+          approved_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['salary_entries']['Row']> & {
+          employee_id: string
+          restaurant_id: string
+          period_month: string
+        }
+        Update: Partial<Database['public']['Tables']['salary_entries']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'salary_entries_employee_id_fkey'
+            columns: ['employee_id']
+            isOneToOne: false
+            referencedRelation: 'employees'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'salary_entries_restaurant_id_fkey'
+            columns: ['restaurant_id']
+            isOneToOne: false
+            referencedRelation: 'restaurants'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      salary_payments: {
+        Row: {
+          id: string
+          salary_entry_id: string
+          amount: number
+          payment_date: string
+          payment_method: 'bank' | 'cash'
+          bank_account_id: string | null
+          cash_account_id: string | null
+          reference: string | null
+          created_by: string | null
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['salary_payments']['Row']> & {
+          salary_entry_id: string
+          amount: number
+          payment_method: 'bank' | 'cash'
+        }
+        Update: Partial<Database['public']['Tables']['salary_payments']['Row']>
+        Relationships: []
+      }
     }
     Views: Record<string, never>
     Functions: {
@@ -643,6 +706,24 @@ export interface Database {
       }
       transition_expense: {
         Args: { p_expense_id: string; p_action: string; p_comment?: string | null }
+        Returns: undefined
+      }
+      save_salary_entry_draft: {
+        Args: { payload: Json }
+        Returns: string
+      }
+      transition_salary_entry: {
+        Args: { p_salary_entry_id: string; p_action: string }
+        Returns: undefined
+      }
+      post_salary_payment: {
+        Args: {
+          p_salary_entry_id: string
+          p_amount: number
+          p_payment_method: string
+          p_bank_account_id?: string | null
+          p_cash_account_id?: string | null
+        }
         Returns: undefined
       }
     }
