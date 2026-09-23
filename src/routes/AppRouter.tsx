@@ -60,6 +60,9 @@ const moduleRoutes: ModuleRoute[] = [
   { path: '/inventory/transfers/:id', permission: 'inventory.manage', Component: lazy(() => import('@/modules/inventory/pages/BranchTransferDetailPage')) },
 
   { path: '/settlements', permission: 'settlements.view', Component: lazy(() => import('@/modules/settlements/pages/SettlementsListPage')) },
+
+  { path: '/settings/users', permission: 'users.manage', Component: lazy(() => import('@/modules/settings/pages/UsersAdminPage')) },
+  { path: '/settings/restaurants', permission: 'restaurants.manage', Component: lazy(() => import('@/modules/settings/pages/RestaurantsAdminPage')) },
 ]
 
 // Routes that don't have a built module yet — rendered as a permission-gated
@@ -68,8 +71,6 @@ const moduleRoutes: ModuleRoute[] = [
 const comingSoonRoutes: { path: string; title: string; permission?: string }[] = [
   { path: '/accounting', title: 'Accounting', permission: 'accounting.view' },
   { path: '/reports', title: 'Reports', permission: 'reports.view' },
-  { path: '/settings/users', title: 'Users', permission: 'users.manage' },
-  { path: '/settings/restaurants', title: 'Restaurants', permission: 'restaurants.manage' },
 ]
 
 export function AppRouter() {
