@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { CheckCircle2, Pencil, Send, ShieldCheck, Undo2, XCircle } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Pencil, Send, ShieldCheck, Undo2, XCircle } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -29,6 +30,10 @@ export default function PurchaseDetailPage() {
   const canApprove = hasPermission('purchases.approve')
   const canPost = hasPermission('purchases.post')
 
+  const itemsAboveAgreed = items.filter(
+    (item) => item.agreed_price_at_entry !== null && item.unit_price > item.agreed_price_at_entry * 1.005,
+  )
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -55,32 +60,65 @@ export default function PurchaseDetailPage() {
               <CardTitle className="text-base">Line items</CardTitle>
             </CardHeader>
             <CardContent>
+              {itemsAboveAgreed.length > 0 && (
+                <div className="mb-4 rounded-md border border-warning/40 bg-warning/10 p-3 text-sm">
+                  <p className="flex items-center gap-1.5 font-medium text-warning-foreground">
+                    <AlertTriangle className="size-4" />
+                    Price alert: {itemsAboveAgreed.length} item{itemsAboveAgreed.length === 1 ? '' : 's'} billed above the
+                    agreed supplier price
+                  </p>
+                </div>
+              )}
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Product</TableHead>
                     <TableHead>Unit</TableHead>
                     <TableHead className="text-right">Qty</TableHead>
+                    <TableHead className="text-right">Agreed Price</TableHead>
                     <TableHead className="text-right">Unit Price</TableHead>
+                    <TableHead className="text-right">Variance</TableHead>
                     <TableHead className="text-right">Discount</TableHead>
                     <TableHead className="text-right">Tax</TableHead>
                     <TableHead className="text-right">Total</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {items.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>{item.products?.name}</TableCell>
-                      <TableCell>{item.units?.code}</TableCell>
-                      <TableCell className="text-right tabular-nums">{item.quantity}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatCurrency(item.unit_price)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatCurrency(item.discount_amount)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatCurrency(item.tax_amount)}</TableCell>
-                      <TableCell className="text-right font-medium tabular-nums">
-                        {formatCurrency(item.line_total)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {items.map((item) => {
+                    const agreed = item.agreed_price_at_entry
+                    const variancePct = agreed && agreed > 0 ? ((item.unit_price - agreed) / agreed) * 100 : null
+                    const isAbove = variancePct !== null && variancePct > 0.5
+                    return (
+                      <TableRow key={item.id} className={isAbove ? 'bg-warning/5' : undefined}>
+                        <TableCell>
+                          {item.products?.name}
+                          {item.products?.brands?.name && (
+                            <span className="ml-1 text-xs text-muted-foreground">({item.products.brands.name})</span>
+                          )}
+                        </TableCell>
+                        <TableCell>{item.units?.code}</TableCell>
+                        <TableCell className="text-right tabular-nums">{item.quantity}</TableCell>
+                        <TableCell className="text-right tabular-nums text-muted-foreground">
+                          {agreed !== null ? formatCurrency(agreed) : 'No contract'}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">{formatCurrency(item.unit_price)}</TableCell>
+                        <TableCell className="text-right">
+                          {variancePct !== null ? (
+                            <Badge variant={isAbove ? 'warning' : 'success'} className="tabular-nums">
+                              {variancePct >= 0 ? '↑' : '↓'} {Math.abs(variancePct).toFixed(0)}%
+                            </Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">{formatCurrency(item.discount_amount)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{formatCurrency(item.tax_amount)}</TableCell>
+                        <TableCell className="text-right font-medium tabular-nums">
+                          {formatCurrency(item.line_total)}
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
                 </TableBody>
               </Table>
               <div className="mt-4 ml-auto max-w-xs space-y-1 text-sm">

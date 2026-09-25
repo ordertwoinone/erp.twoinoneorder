@@ -11,6 +11,7 @@ import { FullScreenSpinner } from '@/components/shared/FullScreenSpinner'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { formatCurrency, formatDate } from '@/lib/utils/format'
 import { useAuth } from '@/hooks/useAuth'
+import { useCategoriesOptions } from '@/hooks/useCatalogOptions'
 import { useSupplierQuery } from '../hooks/useSuppliers'
 import { usePriceLocksQuery } from '../hooks/usePriceLocks'
 import { useSupplierScanJobsQuery } from '../hooks/useQuotationScan'
@@ -27,8 +28,13 @@ export default function SupplierDetailPage() {
   const { data: supplier, isLoading } = useSupplierQuery(id)
   const { data: priceLocks, isLoading: locksLoading } = usePriceLocksQuery(id)
   const { data: scanJobs } = useSupplierScanJobsQuery(id)
+  const { data: categories } = useCategoriesOptions()
 
   if (isLoading || !supplier) return <FullScreenSpinner />
+
+  const supplierCategoryNames = (supplier.category_ids ?? [])
+    .map((cid) => categories?.find((c) => c.id === cid)?.name)
+    .filter((name): name is string => !!name)
 
   const currentLocks = priceLocks?.filter((l) => l.is_current) ?? []
   const historicalLocks = priceLocks?.filter((l) => !l.is_current) ?? []
@@ -44,6 +50,21 @@ export default function SupplierDetailPage() {
           </Button>
         }
       />
+
+      {(supplier.supplier_type || supplierCategoryNames.length > 0) && (
+        <div className="flex flex-wrap gap-1.5">
+          {supplier.supplier_type && (
+            <Badge variant="secondary" className="capitalize">
+              {supplier.supplier_type}
+            </Badge>
+          )}
+          {supplierCategoryNames.map((name) => (
+            <Badge key={name} variant="outline">
+              {name}
+            </Badge>
+          ))}
+        </div>
+      )}
 
       <Tabs defaultValue="price-locks">
         <TabsList>

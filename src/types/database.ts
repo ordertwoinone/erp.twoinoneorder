@@ -262,7 +262,22 @@ export interface Database {
         }
         Insert: Partial<Database['public']['Tables']['products']['Row']> & { name: string; base_unit_id: string }
         Update: Partial<Database['public']['Tables']['products']['Row']>
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'products_brand_id_fkey'
+            columns: ['brand_id']
+            isOneToOne: false
+            referencedRelation: 'brands'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'products_category_id_fkey'
+            columns: ['category_id']
+            isOneToOne: false
+            referencedRelation: 'categories'
+            referencedColumns: ['id']
+          },
+        ]
       }
       purchases: {
         Row: {
