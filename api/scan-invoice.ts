@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { getSupabaseAdmin } from './_lib/supabaseAdmin'
-import { requireUserWithPermission, AuthError } from './_lib/auth'
-import { extractFromImageOrPdf } from './_lib/extractInvoice'
+import { getSupabaseAdmin } from './_lib/supabaseAdmin.js'
+import { requireUserWithPermission, AuthError } from './_lib/auth.js'
+import { extractFromImageOrPdf } from './_lib/extractInvoice.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {

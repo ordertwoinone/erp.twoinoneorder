@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import * as XLSX from 'xlsx'
-import { getSupabaseAdmin } from './_lib/supabaseAdmin'
-import { requireUserWithPermission, AuthError } from './_lib/auth'
-import { extractFromImageOrPdf, extractFromText } from './_lib/extractQuotation'
+import { getSupabaseAdmin } from './_lib/supabaseAdmin.js'
+import { requireUserWithPermission, AuthError } from './_lib/auth.js'
+import { extractFromImageOrPdf, extractFromText } from './_lib/extractQuotation.js'
 
 const SPREADSHEET_MIME_TYPES = new Set([
   'application/vnd.ms-excel',

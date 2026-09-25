@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { getSupabaseAdmin } from './_lib/supabaseAdmin'
-import { requireUserWithPermission, AuthError } from './_lib/auth'
-import { extractFromImageOrPdf } from './_lib/extractLabourList'
+import { getSupabaseAdmin } from './_lib/supabaseAdmin.js'
+import { requireUserWithPermission, AuthError } from './_lib/auth.js'
+import { extractFromImageOrPdf } from './_lib/extractLabourList.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -91,7 +91,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       })
 
       const { error: insertError } = await admin.from('labour_list_import_items').insert(rows)
-      if (insertError) throw insertError
+      if (insertError) throw new Error(`Saving scanned rows failed: ${insertError.message}`)
 
       await admin.from('labour_list_imports').update({ status: 'completed' }).eq('id', importId)
 
