@@ -811,6 +811,10 @@ export interface Database {
           passport_number: string | null
           visa_expiry: string | null
           emirates_id_expiry: string | null
+          medical_entry_date: string | null
+          last_in_country_date: string | null
+          settlement_proof_attachment_id: string | null
+          final_status: 'cancel' | 'renew' | null
           is_shared_employee: boolean
           created_at: string
           updated_at: string
@@ -823,6 +827,75 @@ export interface Database {
             columns: ['current_restaurant_id']
             isOneToOne: false
             referencedRelation: 'restaurants'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      employee_vacations: {
+        Row: {
+          id: string
+          employee_id: string
+          start_date: string
+          end_date: string | null
+          paid_by: 'company' | 'employee' | 'shared' | null
+          amount: number | null
+          notes: string | null
+          created_by: string | null
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['employee_vacations']['Row']> & { employee_id: string; start_date: string }
+        Update: Partial<Database['public']['Tables']['employee_vacations']['Row']>
+        Relationships: []
+      }
+      labour_list_imports: {
+        Row: {
+          id: string
+          restaurant_id: string
+          status: 'queued' | 'processing' | 'completed' | 'failed' | 'reviewed'
+          attachment_id: string | null
+          uploaded_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['labour_list_imports']['Row']> & { restaurant_id: string }
+        Update: Partial<Database['public']['Tables']['labour_list_imports']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'labour_list_imports_restaurant_id_fkey'
+            columns: ['restaurant_id']
+            isOneToOne: false
+            referencedRelation: 'restaurants'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'labour_list_imports_attachment_id_fkey'
+            columns: ['attachment_id']
+            isOneToOne: false
+            referencedRelation: 'attachments'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      labour_list_import_items: {
+        Row: {
+          id: string
+          labour_list_import_id: string
+          matched_employee_id: string | null
+          match_status: 'matched' | 'new' | 'changed' | 'uncertain' | 'ignored'
+          extracted_data: Json
+          confidence_score: number | null
+          reviewed: boolean
+          reviewed_by: string | null
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['labour_list_import_items']['Row']> & { labour_list_import_id: string }
+        Update: Partial<Database['public']['Tables']['labour_list_import_items']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'labour_list_import_items_matched_employee_id_fkey'
+            columns: ['matched_employee_id']
+            isOneToOne: false
+            referencedRelation: 'employees'
             referencedColumns: ['id']
           },
         ]
@@ -1622,6 +1695,18 @@ export interface Database {
           price_decrease_value: number
           has_sufficient_data: boolean
         }[]
+      }
+      create_labour_list_scan_job: {
+        Args: { p_restaurant_id: string; p_storage_path: string; p_file_name: string; p_mime_type: string; p_file_size_bytes: number }
+        Returns: string
+      }
+      confirm_labour_list_import_item: {
+        Args: { p_item_id: string; payload: Json }
+        Returns: string
+      }
+      ignore_labour_list_import_item: {
+        Args: { p_item_id: string }
+        Returns: undefined
       }
       save_purchase_order: {
         Args: { payload: Json }

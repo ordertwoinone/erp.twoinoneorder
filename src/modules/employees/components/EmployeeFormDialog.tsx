@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from 'react'
+import { addDays, isValid, parseISO } from 'date-fns'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Controller, useForm } from 'react-hook-form'
 import { Loader2 } from 'lucide-react'
@@ -30,6 +31,11 @@ const emptyValues: EmployeeInput = {
   email: '',
   employment_status: 'active',
   is_shared_employee: false,
+  emirates_id: '',
+  emirates_id_expiry: '',
+  medical_entry_date: '',
+  last_in_country_date: '',
+  final_status: '',
 }
 
 export function EmployeeFormDialog({
@@ -52,8 +58,12 @@ export function EmployeeFormDialog({
     handleSubmit,
     reset,
     control,
+    watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<EmployeeInput>({ resolver: zodResolver(employeeSchema), defaultValues: emptyValues })
+
+  const emiratesIdExpiry = watch('emirates_id_expiry')
 
   useEffect(() => {
     if (!open) return
@@ -69,6 +79,11 @@ export function EmployeeFormDialog({
         email: existing.email ?? '',
         employment_status: existing.employment_status,
         is_shared_employee: existing.is_shared_employee,
+        emirates_id: existing.emirates_id ?? '',
+        emirates_id_expiry: existing.emirates_id_expiry ?? '',
+        medical_entry_date: existing.medical_entry_date ?? '',
+        last_in_country_date: existing.last_in_country_date ?? '',
+        final_status: existing.final_status ?? '',
       })
     } else if (!employeeId) {
       reset(emptyValues)
@@ -165,6 +180,61 @@ export function EmployeeFormDialog({
               <Label htmlFor="email">Email</Label>
               <Input id="email" type="email" {...register('email')} />
               {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
+            </div>
+          </div>
+
+          <div className="space-y-4 rounded-md border p-3">
+            <p className="text-sm font-medium text-muted-foreground">Visa &amp; renewal</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="emirates_id">Emirates ID</Label>
+                <Input id="emirates_id" {...register('emirates_id')} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="last_in_country_date">Last in country</Label>
+                <Input
+                  id="last_in_country_date"
+                  type="date"
+                  {...register('last_in_country_date', {
+                    onChange: (e) => {
+                      const value = e.target.value
+                      if (value && !emiratesIdExpiry) {
+                        const parsed = parseISO(value)
+                        if (isValid(parsed)) setValue('emirates_id_expiry', addDays(parsed, 27).toISOString().slice(0, 10))
+                      }
+                    },
+                  })}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="emirates_id_expiry">Emirates ID expiry</Label>
+                <Input id="emirates_id_expiry" type="date" {...register('emirates_id_expiry')} />
+                <p className="text-xs text-muted-foreground">Defaults to last-in-country + 27 days if left blank.</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="medical_entry_date">Medical entry</Label>
+                <Input id="medical_entry_date" type="date" {...register('medical_entry_date')} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Final status</Label>
+              <Controller
+                control={control}
+                name="final_status"
+                render={({ field }) => (
+                  <Select value={field.value || undefined} onValueChange={field.onChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Not decided" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="renew">Renew</SelectItem>
+                      <SelectItem value="cancel">Cancel</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
             </div>
           </div>
 

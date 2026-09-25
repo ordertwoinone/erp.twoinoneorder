@@ -54,6 +54,7 @@ const moduleRoutes: ModuleRoute[] = [
   { path: '/payments/:id/edit', permission: 'payments.create', Component: lazy(() => import('@/modules/payments/pages/PaymentFormPage')) },
 
   { path: '/employees', permission: 'employees.view', Component: lazy(() => import('@/modules/employees/pages/EmployeesListPage')) },
+  { path: '/employees/scan', permission: 'employees.manage', Component: lazy(() => import('@/modules/employees/pages/LabourListScanPage')) },
 
   { path: '/expenses', permission: 'expenses.manage', Component: lazy(() => import('@/modules/expenses/pages/ExpensesListPage')) },
   { path: '/expenses/new', permission: 'expenses.manage', Component: lazy(() => import('@/modules/expenses/pages/ExpenseFormPage')) },

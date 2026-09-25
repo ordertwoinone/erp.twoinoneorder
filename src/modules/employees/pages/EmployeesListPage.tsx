@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { Plus, Search } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Plus, ScanLine, Search } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -55,9 +56,16 @@ export default function EmployeesListPage() {
         description="Central employee register across all restaurants."
         actions={
           canManage && (
-            <Button onClick={() => setCreateOpen(true)}>
-              <Plus /> New Employee
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" asChild>
+                <Link to="/employees/scan">
+                  <ScanLine /> Scan Labour List
+                </Link>
+              </Button>
+              <Button onClick={() => setCreateOpen(true)}>
+                <Plus /> New Employee
+              </Button>
+            </div>
           )
         }
       />

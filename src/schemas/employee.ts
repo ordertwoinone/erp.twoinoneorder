@@ -11,6 +11,11 @@ export const employeeSchema = z.object({
   email: z.string().email('Enter a valid email').optional().or(z.literal('')),
   employment_status: z.enum(['active', 'on_leave', 'terminated', 'resigned']),
   is_shared_employee: z.boolean(),
+  emirates_id: z.string().optional().or(z.literal('')),
+  emirates_id_expiry: z.string().optional().or(z.literal('')),
+  medical_entry_date: z.string().optional().or(z.literal('')),
+  last_in_country_date: z.string().optional().or(z.literal('')),
+  final_status: z.enum(['renew', 'cancel']).optional().or(z.literal('')),
 })
 
 export type EmployeeInput = z.infer<typeof employeeSchema>

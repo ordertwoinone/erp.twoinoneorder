@@ -18,6 +18,11 @@ export function useSaveEmployee() {
         email: input.email || null,
         employment_status: input.employment_status,
         is_shared_employee: input.is_shared_employee,
+        emirates_id: input.emirates_id || null,
+        emirates_id_expiry: input.emirates_id_expiry || null,
+        medical_entry_date: input.medical_entry_date || null,
+        last_in_country_date: input.last_in_country_date || null,
+        final_status: input.final_status || null,
       }
 
       if (input.id) {
