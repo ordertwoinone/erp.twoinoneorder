@@ -1,9 +1,13 @@
 import { useMemo, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { Plus } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
+import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { DataTable } from '@/components/tables/DataTable'
 import { formatDate } from '@/lib/utils/format'
+import { useAuth } from '@/hooks/useAuth'
 import { useRestaurantScope } from '@/hooks/useRestaurantScope'
 import { useGoodsReceiptsQuery, GOODS_RECEIPTS_PAGE_SIZE } from '../hooks/useGoodsReceipts'
 
@@ -18,7 +22,9 @@ interface ReceiptRow {
 }
 
 export default function GoodsReceiptsListPage() {
+  const { hasPermission } = useAuth()
   const { selectedRestaurantId } = useRestaurantScope()
+  const navigate = useNavigate()
   const [pageIndex, setPageIndex] = useState(0)
 
   const { data, isLoading } = useGoodsReceiptsQuery({ restaurantId: selectedRestaurantId, pageIndex })
@@ -49,13 +55,26 @@ export default function GoodsReceiptsListPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Goods Receipts" description="What physically arrived at each restaurant, against orders and invoices." />
+      <PageHeader
+        title="Goods Receipts"
+        description="What physically arrived at each restaurant, against orders and invoices."
+        actions={
+          hasPermission('purchases.create') && (
+            <Button asChild>
+              <Link to="/purchases/receipts/new">
+                <Plus /> New Goods Receipt
+              </Link>
+            </Button>
+          )
+        }
+      />
 
       <DataTable
         columns={columns}
         data={data?.rows ?? []}
         isLoading={isLoading}
         emptyMessage="No goods receipts yet."
+        onRowClick={(row) => navigate(`/purchases/receipts/${row.id}`)}
         pagination={{
           pageIndex,
           pageSize: GOODS_RECEIPTS_PAGE_SIZE,

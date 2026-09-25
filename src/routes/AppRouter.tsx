@@ -35,7 +35,13 @@ const moduleRoutes: ModuleRoute[] = [
   { path: '/purchases/requests/:id', permission: 'purchases.create', Component: lazy(() => import('@/modules/purchase-requests/pages/PurchaseRequestDetailPage')) },
 
   { path: '/purchases/orders', permission: 'purchase_orders.manage', Component: lazy(() => import('@/modules/purchases/pages/PurchaseOrdersListPage')) },
+  { path: '/purchases/orders/new', permission: 'purchase_orders.manage', Component: lazy(() => import('@/modules/purchases/pages/PurchaseOrderFormPage')) },
+  { path: '/purchases/orders/:id', permission: 'purchase_orders.manage', Component: lazy(() => import('@/modules/purchases/pages/PurchaseOrderDetailPage')) },
+  { path: '/purchases/orders/:id/edit', permission: 'purchase_orders.manage', Component: lazy(() => import('@/modules/purchases/pages/PurchaseOrderFormPage')) },
+
   { path: '/purchases/receipts', permission: 'purchases.create', Component: lazy(() => import('@/modules/purchases/pages/GoodsReceiptsListPage')) },
+  { path: '/purchases/receipts/new', permission: 'purchases.create', Component: lazy(() => import('@/modules/purchases/pages/GoodsReceiptFormPage')) },
+  { path: '/purchases/receipts/:id', permission: 'purchases.create', Component: lazy(() => import('@/modules/purchases/pages/GoodsReceiptDetailPage')) },
 
   { path: '/sales', permission: 'sales.create', Component: lazy(() => import('@/modules/sales/pages/SalesListPage')) },
   { path: '/sales/new', permission: 'sales.create', Component: lazy(() => import('@/modules/sales/pages/SalesFormPage')) },

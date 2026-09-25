@@ -1,5 +1,5 @@
-import { useParams } from 'react-router-dom'
-import { CheckCircle2, XCircle } from 'lucide-react'
+import { Link, useParams } from 'react-router-dom'
+import { CheckCircle2, ShoppingCart, XCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -67,6 +67,21 @@ export default function PurchaseRequestDetailPage() {
               </Button>
               <Button variant="destructive" onClick={() => review.mutate({ action: 'reject' })} disabled={review.isPending}>
                 <XCircle /> Reject
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {request.status === 'approved' && canReview && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Next step</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Button className="w-full" asChild>
+                <Link to={`/purchases/orders/new?fromRequest=${request.id}`}>
+                  <ShoppingCart /> Convert to purchase order
+                </Link>
               </Button>
             </CardContent>
           </Card>

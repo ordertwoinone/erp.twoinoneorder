@@ -1,9 +1,13 @@
 import { useMemo, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { Plus } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
+import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { DataTable } from '@/components/tables/DataTable'
 import { formatDate } from '@/lib/utils/format'
+import { useAuth } from '@/hooks/useAuth'
 import { useRestaurantScope } from '@/hooks/useRestaurantScope'
 import { usePurchaseOrdersQuery, PURCHASE_ORDERS_PAGE_SIZE } from '../hooks/usePurchaseOrders'
 
@@ -18,7 +22,9 @@ interface OrderRow {
 }
 
 export default function PurchaseOrdersListPage() {
+  const { hasPermission } = useAuth()
   const { selectedRestaurantId } = useRestaurantScope()
+  const navigate = useNavigate()
   const [pageIndex, setPageIndex] = useState(0)
 
   const { data, isLoading } = usePurchaseOrdersQuery({ restaurantId: selectedRestaurantId, pageIndex })
@@ -45,13 +51,26 @@ export default function PurchaseOrdersListPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Purchase Orders" description="Commitments placed with suppliers, from request to receipt." />
+      <PageHeader
+        title="Purchase Orders"
+        description="Commitments placed with suppliers, from request to receipt."
+        actions={
+          hasPermission('purchase_orders.manage') && (
+            <Button asChild>
+              <Link to="/purchases/orders/new">
+                <Plus /> New Purchase Order
+              </Link>
+            </Button>
+          )
+        }
+      />
 
       <DataTable
         columns={columns}
         data={data?.rows ?? []}
         isLoading={isLoading}
         emptyMessage="No purchase orders yet."
+        onRowClick={(row) => navigate(`/purchases/orders/${row.id}`)}
         pagination={{
           pageIndex,
           pageSize: PURCHASE_ORDERS_PAGE_SIZE,

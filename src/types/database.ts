@@ -435,6 +435,13 @@ export interface Database {
             referencedRelation: 'products'
             referencedColumns: ['id']
           },
+          {
+            foreignKeyName: 'purchase_order_items_unit_id_fkey'
+            columns: ['unit_id']
+            isOneToOne: false
+            referencedRelation: 'units'
+            referencedColumns: ['id']
+          },
         ]
       }
       goods_receipts: {
@@ -503,6 +510,13 @@ export interface Database {
             columns: ['product_id']
             isOneToOne: false
             referencedRelation: 'products'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'goods_receipt_items_unit_id_fkey'
+            columns: ['unit_id']
+            isOneToOne: false
+            referencedRelation: 'units'
             referencedColumns: ['id']
           },
         ]
@@ -1608,6 +1622,22 @@ export interface Database {
           price_decrease_value: number
           has_sufficient_data: boolean
         }[]
+      }
+      save_purchase_order: {
+        Args: { payload: Json }
+        Returns: string
+      }
+      place_purchase_order: {
+        Args: { p_order_id: string }
+        Returns: undefined
+      }
+      cancel_purchase_order: {
+        Args: { p_order_id: string }
+        Returns: undefined
+      }
+      save_goods_receipt: {
+        Args: { payload: Json }
+        Returns: string
       }
       get_vat_summary: {
         Args: { p_restaurant_ids: string[] | null; p_period_start: string; p_period_end: string }
