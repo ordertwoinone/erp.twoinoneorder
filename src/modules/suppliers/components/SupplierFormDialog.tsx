@@ -3,6 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Controller, useForm } from 'react-hook-form'
 import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
@@ -18,8 +19,9 @@ import {
 } from '@/components/ui/dialog'
 import { useAuth } from '@/hooks/useAuth'
 import { useAedEquivalent } from '@/hooks/useExchangeRates'
+import { useCategoriesOptions } from '@/hooks/useCatalogOptions'
 import { formatCurrency } from '@/lib/utils/format'
-import { CURRENCY_OPTIONS, supplierSchema, type SupplierInput } from '@/schemas/supplier'
+import { CURRENCY_OPTIONS, SUPPLIER_TYPE_OPTIONS, supplierSchema, type SupplierInput } from '@/schemas/supplier'
 import { useSaveSupplier } from '../hooks/useSaveSupplier'
 import { useSupplierQuery } from '../hooks/useSuppliers'
 
@@ -28,6 +30,8 @@ const emptyValues: SupplierInput = {
   name: '',
   trn: '',
   payment_terms_days: 30,
+  supplier_type: '',
+  category_ids: [],
   salesman_name: '',
   credit_limit_amount: '',
   credit_limit_currency: 'AED',
@@ -54,6 +58,7 @@ export function SupplierFormDialog({
   const canViewBank = hasPermission('suppliers.view_bank_details')
   const saveSupplier = useSaveSupplier()
   const { data: existing } = useSupplierQuery(supplierId)
+  const { data: categories } = useCategoriesOptions()
 
   const {
     register,
@@ -80,6 +85,8 @@ export function SupplierFormDialog({
         name: existing.name,
         trn: existing.trn ?? '',
         payment_terms_days: existing.payment_terms_days,
+        supplier_type: existing.supplier_type ?? '',
+        category_ids: existing.category_ids ?? [],
         salesman_name: existing.salesman_name ?? '',
         credit_limit_amount: existing.credit_limit_amount ?? '',
         credit_limit_currency: existing.credit_limit_currency ?? 'AED',
@@ -130,6 +137,57 @@ export function SupplierFormDialog({
           <div className="space-y-2">
             <Label htmlFor="trn">TRN</Label>
             <Input id="trn" {...register('trn')} />
+          </div>
+
+          <div className="space-y-4 rounded-md border p-3">
+            <p className="text-sm font-medium text-muted-foreground">Type &amp; categories</p>
+            <div className="space-y-2">
+              <Label>Supplier type</Label>
+              <Controller
+                control={control}
+                name="supplier_type"
+                render={({ field }) => (
+                  <Select value={field.value || undefined} onValueChange={field.onChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Not set" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SUPPLIER_TYPE_OPTIONS.map((t) => (
+                        <SelectItem key={t} value={t} className="capitalize">
+                          {t}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Categories supplied</Label>
+              <Controller
+                control={control}
+                name="category_ids"
+                render={({ field }) => (
+                  <div className="flex max-h-28 flex-wrap gap-3 overflow-y-auto rounded-md border p-3">
+                    {categories?.length ? (
+                      categories.map((c) => (
+                        <label key={c.id} className="flex items-center gap-2 text-sm">
+                          <Checkbox
+                            checked={field.value.includes(c.id)}
+                            onCheckedChange={(checked) =>
+                              field.onChange(checked ? [...field.value, c.id] : field.value.filter((id) => id !== c.id))
+                            }
+                          />
+                          {c.name}
+                        </label>
+                      ))
+                    ) : (
+                      <p className="text-xs text-muted-foreground">No product categories set up yet.</p>
+                    )}
+                  </div>
+                )}
+              />
+            </div>
           </div>
 
           <div className="space-y-4 rounded-md border p-3">

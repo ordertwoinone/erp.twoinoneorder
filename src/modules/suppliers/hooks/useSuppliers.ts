@@ -13,7 +13,7 @@ export function useSuppliersQuery({ search, pageIndex }: { search: string; pageI
       let query = supabase
         .from('suppliers')
         .select(
-          'id, code, name, trn, payment_terms_days, salesman_name, credit_limit_amount, credit_limit_currency, is_active',
+          'id, code, name, trn, payment_terms_days, supplier_type, salesman_name, credit_limit_amount, credit_limit_currency, is_active',
           { count: 'exact' },
         )
         .order('name')
@@ -35,9 +35,13 @@ export function useSupplierQuery(id: string | undefined) {
     queryKey: ['suppliers', id],
     enabled: !!id,
     queryFn: async () => {
-      const { data, error } = await supabase.from('suppliers').select('*').eq('id', id!).single()
-      if (error) throw error
-      return data
+      const [supplierRes, categoriesRes] = await Promise.all([
+        supabase.from('suppliers').select('*').eq('id', id!).single(),
+        supabase.from('supplier_categories').select('category_id').eq('supplier_id', id!),
+      ])
+      if (supplierRes.error) throw supplierRes.error
+      if (categoriesRes.error) throw categoriesRes.error
+      return { ...supplierRes.data, category_ids: categoriesRes.data.map((c) => c.category_id) }
     },
   })
 }

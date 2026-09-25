@@ -30,6 +30,8 @@ import {
   useSetAccountingPeriodStatus,
   JOURNAL_PAGE_SIZE,
 } from '../hooks/useAccounting'
+import { BankReconciliationPanel } from '../components/BankReconciliationPanel'
+import { VatSummaryPanel } from '../components/VatSummaryPanel'
 
 interface JournalRow {
   id: string
@@ -91,6 +93,8 @@ export default function AccountingPage() {
           <TabsTrigger value="journal">Journal</TabsTrigger>
           <TabsTrigger value="accounts">Chart of Accounts</TabsTrigger>
           <TabsTrigger value="periods">Periods</TabsTrigger>
+          <TabsTrigger value="bank-reconciliation">Bank Reconciliation</TabsTrigger>
+          <TabsTrigger value="vat">VAT</TabsTrigger>
           <TabsTrigger value="exchange-rates">Exchange Rates</TabsTrigger>
         </TabsList>
 
@@ -159,6 +163,14 @@ export default function AccountingPage() {
               )}
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="bank-reconciliation">
+          <BankReconciliationPanel restaurantId={selectedRestaurantId} />
+        </TabsContent>
+
+        <TabsContent value="vat">
+          <VatSummaryPanel restaurantId={selectedRestaurantId} />
         </TabsContent>
 
         <TabsContent value="exchange-rates">

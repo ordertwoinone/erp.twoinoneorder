@@ -17,6 +17,18 @@ export function useProductsOptions() {
   })
 }
 
+export function useCategoriesOptions() {
+  return useQuery({
+    queryKey: ['catalog', 'categories'],
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const { data, error } = await supabase.from('categories').select('id, name').eq('is_active', true).order('name')
+      if (error) throw error
+      return data
+    },
+  })
+}
+
 export function useBrandsOptions() {
   return useQuery({
     queryKey: ['catalog', 'brands'],

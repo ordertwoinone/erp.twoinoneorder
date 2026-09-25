@@ -18,6 +18,7 @@ interface SupplierRow {
   name: string
   trn: string | null
   payment_terms_days: number
+  supplier_type: string | null
   salesman_name: string | null
   credit_limit_amount: number | null
   credit_limit_currency: string | null
@@ -39,6 +40,14 @@ export default function SuppliersListPage() {
       { accessorKey: 'code', header: 'Code' },
       { accessorKey: 'name', header: 'Name' },
       { accessorKey: 'trn', header: 'TRN', cell: ({ getValue }) => (getValue() as string) || '—' },
+      {
+        accessorKey: 'supplier_type',
+        header: 'Type',
+        cell: ({ getValue }) => {
+          const value = getValue() as string | null
+          return value ? <Badge variant="outline" className="capitalize">{value}</Badge> : '—'
+        },
+      },
       {
         accessorKey: 'payment_terms_days',
         header: 'Payment Terms',

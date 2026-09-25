@@ -1,11 +1,13 @@
 import type { LucideIcon } from 'lucide-react'
 import {
   Banknote,
+  BarChart3,
   Boxes,
   CalendarClock,
   ClipboardList,
   CreditCard,
   FileBarChart,
+  History,
   LayoutDashboard,
   PackageCheck,
   PackageSearch,
@@ -44,6 +46,7 @@ export const navSections: NavSection[] = [
       { label: 'Goods Receipts', to: '/purchases/receipts', icon: PackageCheck, permission: 'purchases.create' },
       { label: 'Purchases (Invoices)', to: '/purchases', icon: ShoppingCart, permission: 'purchases.create' },
       { label: 'Suppliers', to: '/suppliers', icon: Truck, permission: 'suppliers.manage' },
+      { label: 'Supplier Rankings', to: '/suppliers/rankings', icon: BarChart3, permission: 'reports.view' },
     ],
   },
   {
@@ -74,7 +77,10 @@ export const navSections: NavSection[] = [
   },
   {
     label: 'Reports',
-    items: [{ label: 'Reports', to: '/reports', icon: FileBarChart, permission: 'reports.view' }],
+    items: [
+      { label: 'Reports', to: '/reports', icon: FileBarChart, permission: 'reports.view' },
+      { label: 'Audit Log', to: '/reports/audit-log', icon: History, permission: 'audit.view' },
+    ],
   },
   {
     label: 'Administration',

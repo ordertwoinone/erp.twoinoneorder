@@ -22,6 +22,7 @@ interface ModuleRoute {
 // change for a new module's routes.
 const moduleRoutes: ModuleRoute[] = [
   { path: '/suppliers', permission: 'suppliers.manage', Component: lazy(() => import('@/modules/suppliers/pages/SuppliersListPage')) },
+  { path: '/suppliers/rankings', permission: 'reports.view', Component: lazy(() => import('@/modules/suppliers/pages/SupplierRankingsPage')) },
   { path: '/suppliers/:id', permission: 'suppliers.manage', Component: lazy(() => import('@/modules/suppliers/pages/SupplierDetailPage')) },
 
   { path: '/purchases', permission: 'purchases.create', Component: lazy(() => import('@/modules/purchases/pages/PurchasesListPage')) },
@@ -70,6 +71,7 @@ const moduleRoutes: ModuleRoute[] = [
 
   { path: '/accounting', permission: 'accounting.view', Component: lazy(() => import('@/modules/accounting/pages/AccountingPage')) },
   { path: '/reports', permission: 'reports.view', Component: lazy(() => import('@/modules/reports/pages/ReportsPage')) },
+  { path: '/reports/audit-log', permission: 'audit.view', Component: lazy(() => import('@/modules/reports/pages/AuditLogPage')) },
 ]
 
 // Routes that don't have a built module yet — rendered as a permission-gated

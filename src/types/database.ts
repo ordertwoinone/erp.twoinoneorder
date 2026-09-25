@@ -614,6 +614,64 @@ export interface Database {
           account_number: string
         }
         Update: Partial<Database['public']['Tables']['bank_accounts']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'bank_accounts_restaurant_id_fkey'
+            columns: ['restaurant_id']
+            isOneToOne: false
+            referencedRelation: 'restaurants'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      bank_transactions: {
+        Row: {
+          id: string
+          restaurant_id: string
+          bank_account_id: string | null
+          cash_account_id: string | null
+          transaction_date: string
+          direction: 'credit' | 'debit'
+          amount: number
+          source_type: string
+          source_id: string | null
+          reference: string | null
+          notes: string | null
+          created_by: string | null
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['bank_transactions']['Row']> & {
+          restaurant_id: string
+          transaction_date: string
+          direction: 'credit' | 'debit'
+          amount: number
+          source_type: string
+        }
+        Update: Partial<Database['public']['Tables']['bank_transactions']['Row']>
+        Relationships: []
+      }
+      bank_reconciliations: {
+        Row: {
+          id: string
+          bank_account_id: string
+          period_start: string
+          period_end: string
+          statement_closing_balance: number
+          ledger_closing_balance: number
+          difference: number
+          status: 'in_progress' | 'completed'
+          reconciled_by: string | null
+          reconciled_at: string | null
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['bank_reconciliations']['Row']> & {
+          bank_account_id: string
+          period_start: string
+          period_end: string
+          statement_closing_balance: number
+          ledger_closing_balance: number
+        }
+        Update: Partial<Database['public']['Tables']['bank_reconciliations']['Row']>
         Relationships: []
       }
       cash_accounts: {
@@ -1207,6 +1265,32 @@ export interface Database {
         Update: Partial<Database['public']['Tables']['attachments']['Row']>
         Relationships: []
       }
+      audit_logs: {
+        Row: {
+          id: string
+          actor_id: string | null
+          action: string
+          module: string
+          entity_type: string
+          entity_id: string | null
+          old_value: Json | null
+          new_value: Json | null
+          ip_address: string | null
+          user_agent: string | null
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['audit_logs']['Row']> & { action: string; module: string; entity_type: string }
+        Update: Partial<Database['public']['Tables']['audit_logs']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'audit_logs_actor_id_fkey'
+            columns: ['actor_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       ai_scan_jobs: {
         Row: {
           id: string
@@ -1509,6 +1593,10 @@ export interface Database {
           price_decrease_value: number
           has_sufficient_data: boolean
         }[]
+      }
+      get_vat_summary: {
+        Args: { p_restaurant_ids: string[] | null; p_period_start: string; p_period_end: string }
+        Returns: { output_vat: number; input_vat: number; net_payable: number }[]
       }
       get_dashboard_accounting_overview: {
         Args: { p_restaurant_ids: string[] | null; p_period_start: string; p_period_end: string }
