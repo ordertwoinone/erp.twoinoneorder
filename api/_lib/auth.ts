@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '../../src/types/database'
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL
@@ -14,7 +14,7 @@ const anonKey = process.env.VITE_SUPABASE_ANON_KEY
 export async function requireUserWithPermission(
   authHeader: string | undefined,
   permission: string,
-): Promise<{ userId: string }> {
+): Promise<{ userId: string; client: SupabaseClient<Database> }> {
   if (!supabaseUrl || !anonKey) {
     throw new Error('Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY server environment variables.')
   }
@@ -43,7 +43,7 @@ export async function requireUserWithPermission(
     throw new AuthError(403, `Missing permission: ${permission}`)
   }
 
-  return { userId: user.id }
+  return { userId: user.id, client: supabase }
 }
 
 export class AuthError extends Error {

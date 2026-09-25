@@ -817,6 +817,31 @@ export interface Database {
           final_status: 'cancel' | 'renew' | null
           labour_person_number: string | null
           labour_fine_amount: number | null
+          visa_sponsorship_type: string | null
+          sponsor_name: string | null
+          work_permit_category: string | null
+          visa_status: string | null
+          work_permit_expiry_available: boolean
+          work_permit_expiry: string | null
+          work_permit_salary: number | null
+          work_permit_number: string | null
+          labour_permit_expiry: string | null
+          permit_issue_date: string | null
+          medical_expiry_date: string | null
+          last_exit_date: string | null
+          presence_status: string | null
+          passport_issue_date: string | null
+          passport_expiry_date: string | null
+          nationality: string | null
+          renewal_salary: number | null
+          flight_ticket_claimed: boolean
+          decision_date: string | null
+          settlement_date: string | null
+          settlement_amount: number | null
+          settlement_status: string
+          settlement_document_type: string | null
+          settlement_reference: string | null
+          renewal_notes: string | null
           is_shared_employee: boolean
           created_at: string
           updated_at: string
@@ -842,12 +867,70 @@ export interface Database {
           paid_by: 'company' | 'employee' | 'shared' | null
           amount: number | null
           notes: string | null
+          ticket_claim_status: 'claimed' | 'not_claimed' | 'pending' | null
+          attachment_id: string | null
           created_by: string | null
           created_at: string
         }
         Insert: Partial<Database['public']['Tables']['employee_vacations']['Row']> & { employee_id: string; start_date: string }
         Update: Partial<Database['public']['Tables']['employee_vacations']['Row']>
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'employee_vacations_attachment_id_fkey'
+            columns: ['attachment_id']
+            isOneToOne: false
+            referencedRelation: 'attachments'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      employee_documents: {
+        Row: {
+          id: string
+          employee_id: string
+          document_type: string
+          document_number: string | null
+          expiry_date: string | null
+          attachment_id: string | null
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['employee_documents']['Row']> & { employee_id: string; document_type: string }
+        Update: Partial<Database['public']['Tables']['employee_documents']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'employee_documents_attachment_id_fkey'
+            columns: ['attachment_id']
+            isOneToOne: false
+            referencedRelation: 'attachments'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      employee_replacements: {
+        Row: {
+          id: string
+          employee_id: string
+          replacement_employee_id: string | null
+          candidate_name: string | null
+          position: string | null
+          source: string | null
+          availability: 'available_now' | 'available_from' | 'interview_pending' | 'not_available'
+          available_from: string | null
+          notes: string | null
+          created_by: string | null
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['employee_replacements']['Row']> & { employee_id: string }
+        Update: Partial<Database['public']['Tables']['employee_replacements']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'employee_replacements_replacement_employee_id_fkey'
+            columns: ['replacement_employee_id']
+            isOneToOne: false
+            referencedRelation: 'employees'
+            referencedColumns: ['id']
+          },
+        ]
       }
       labour_list_imports: {
         Row: {
@@ -1697,6 +1780,10 @@ export interface Database {
           price_decrease_value: number
           has_sufficient_data: boolean
         }[]
+      }
+      save_employee_record: {
+        Args: { payload: Json }
+        Returns: string
       }
       create_labour_list_scan_job: {
         Args: { p_restaurant_id: string; p_storage_path: string; p_file_name: string; p_mime_type: string; p_file_size_bytes: number }

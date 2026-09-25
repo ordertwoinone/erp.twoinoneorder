@@ -29,16 +29,4 @@ export function useEmployeesQuery({ search, pageIndex }: { search: string; pageI
   })
 }
 
-export function useEmployeeQuery(id: string | undefined) {
-  return useQuery({
-    queryKey: ['employees', id],
-    enabled: !!id,
-    queryFn: async () => {
-      const { data, error } = await supabase.from('employees').select('*').eq('id', id!).single()
-      if (error) throw error
-      return data
-    },
-  })
-}
-
 export { PAGE_SIZE as EMPLOYEES_PAGE_SIZE }

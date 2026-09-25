@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Plus, ScanLine, Search } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Button } from '@/components/ui/button'
@@ -10,7 +10,6 @@ import { DataTable } from '@/components/tables/DataTable'
 import { useAuth } from '@/hooks/useAuth'
 import { formatCurrency } from '@/lib/utils/format'
 import { useEmployeesQuery, EMPLOYEES_PAGE_SIZE } from '../hooks/useEmployees'
-import { EmployeeFormDialog } from '../components/EmployeeFormDialog'
 
 interface EmployeeRow {
   id: string
@@ -28,8 +27,7 @@ export default function EmployeesListPage() {
   const canManage = hasPermission('employees.manage')
   const [search, setSearch] = useState('')
   const [pageIndex, setPageIndex] = useState(0)
-  const [editingId, setEditingId] = useState<string | undefined>(undefined)
-  const [createOpen, setCreateOpen] = useState(false)
+  const navigate = useNavigate()
 
   const { data, isLoading } = useEmployeesQuery({ search, pageIndex })
 
@@ -78,8 +76,10 @@ export default function EmployeesListPage() {
                   <ScanLine /> Scan Labour List
                 </Link>
               </Button>
-              <Button onClick={() => setCreateOpen(true)}>
-                <Plus /> New Employee
+              <Button asChild>
+                <Link to="/employees/new">
+                  <Plus /> New Employee
+                </Link>
               </Button>
             </div>
           )
@@ -104,20 +104,13 @@ export default function EmployeesListPage() {
         data={data?.rows ?? []}
         isLoading={isLoading}
         emptyMessage="No employees yet."
-        onRowClick={canManage ? (row) => setEditingId(row.id) : undefined}
+        onRowClick={canManage ? (row) => navigate(`/employees/${row.id}`) : undefined}
         pagination={{
           pageIndex,
           pageSize: EMPLOYEES_PAGE_SIZE,
           totalCount: data?.totalCount ?? 0,
           onPageChange: setPageIndex,
         }}
-      />
-
-      <EmployeeFormDialog open={createOpen} onOpenChange={setCreateOpen} />
-      <EmployeeFormDialog
-        employeeId={editingId}
-        open={!!editingId}
-        onOpenChange={(open) => !open && setEditingId(undefined)}
       />
     </div>
   )
