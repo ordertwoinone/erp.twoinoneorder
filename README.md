@@ -92,7 +92,7 @@ Every document bucket (`invoices`, `purchase-documents`, `employee-documents`, `
 
 ## 7. AI configuration
 
-Invoice, quotation and labour-list scanning run in Vercel serverless functions (`api/scan-*.ts`, never from the browser) that call Google Gemini using `GEMINI_API_KEY` (model override: `GEMINI_MODEL`, default `gemini-2.5-flash`). Results land in staging tables for human review before anything becomes a real record.
+Invoice, quotation and labour-list scanning run in Vercel serverless functions (`api/scan-*.ts`, never from the browser) that call Google Gemini using `GEMINI_API_KEY` (model override: `GEMINI_MODEL`, default `gemini-3.8-flash`, with automatic fallback if Google retires a model). Results land in staging tables for human review before anything becomes a real record.
 
 ## 8. Development commands
 
