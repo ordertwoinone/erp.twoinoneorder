@@ -1,5 +1,4 @@
-const OPENAI_API_URL = 'https://api.openai.com/v1/responses'
-const DEFAULT_MODEL = 'gpt-4o'
+import { callGemini, fileParts } from './gemini.js'
 
 export interface ExtractedQuotationItem {
   description: string
@@ -52,74 +51,14 @@ Set confidence 0-100 for how sure you are the line was read correctly, and is_un
 
 Also extract supplier_name, quotation_number and quotation_date from the document header if present, else null.`
 
-function extractOutputText(payload: any): string {
-  if (typeof payload.output_text === 'string') return payload.output_text
-  const messages = Array.isArray(payload.output) ? payload.output : []
-  for (const message of messages) {
-    if (message.type !== 'message' || !Array.isArray(message.content)) continue
-    for (const part of message.content) {
-      if (part.type === 'output_text' && typeof part.text === 'string') return part.text
-    }
-  }
-  throw new Error('OpenAI response did not contain output text')
-}
-
-async function callOpenAi(content: Record<string, unknown>[]): Promise<{ raw: unknown; parsed: ExtractedQuotation }> {
-  const apiKey = process.env.OPENAI_API_KEY
-  if (!apiKey) {
-    throw new Error('OPENAI_API_KEY is not configured on the server.')
-  }
-
-  const response = await fetch(OPENAI_API_URL, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: process.env.OPENAI_MODEL || DEFAULT_MODEL,
-      input: [
-        {
-          role: 'user',
-          content: [{ type: 'input_text', text: INSTRUCTIONS }, ...content],
-        },
-      ],
-      text: {
-        format: {
-          type: 'json_schema',
-          name: 'quotation_extraction',
-          strict: true,
-          schema: EXTRACTION_SCHEMA,
-        },
-      },
-    }),
-  })
-
-  const raw = await response.json()
-  if (!response.ok) {
-    const message = (raw as any)?.error?.message || `OpenAI request failed with status ${response.status}`
-    throw new Error(message)
-  }
-
-  const text = extractOutputText(raw)
-  let parsed: ExtractedQuotation
-  try {
-    parsed = JSON.parse(text)
-  } catch {
-    throw new Error('OpenAI returned output that was not valid JSON.')
-  }
-
-  return { raw, parsed }
-}
-
-export async function extractFromImageOrPdf(base64Data: string, mimeType: string, fileName: string) {
-  const isPdf = mimeType === 'application/pdf'
-  const content = isPdf
-    ? [{ type: 'input_file', filename: fileName, file_data: `data:${mimeType};base64,${base64Data}` }]
-    : [{ type: 'input_image', image_url: `data:${mimeType};base64,${base64Data}` }]
-  return callOpenAi(content)
+export async function extractFromImageOrPdf(base64Data: string, mimeType: string, _fileName: string) {
+  return callGemini<ExtractedQuotation>({ instructions: INSTRUCTIONS, schema: EXTRACTION_SCHEMA, parts: fileParts(base64Data, mimeType) })
 }
 
 export async function extractFromText(text: string) {
-  return callOpenAi([{ type: 'input_text', text: `Document content (converted from spreadsheet):\n\n${text}` }])
+  return callGemini<ExtractedQuotation>({
+    instructions: INSTRUCTIONS,
+    schema: EXTRACTION_SCHEMA,
+    parts: [{ text: `Document content (converted from spreadsheet):\n\n${text}` }],
+  })
 }

@@ -28,7 +28,7 @@ Fill `.env.local` (never committed — see `.gitignore`):
 VITE_SUPABASE_URL=https://<project-ref>.supabase.co
 VITE_SUPABASE_ANON_KEY=<anon key, from Project Settings → API>
 SUPABASE_SERVICE_ROLE_KEY=<service role key — server-side only, never VITE_-prefixed>
-OPENAI_API_KEY=<for the AI invoice/labour-list scanner, once built>
+GEMINI_API_KEY=<Google Gemini key for the AI invoice/quotation/labour-list scanners>
 ```
 
 The anon key is safe in the browser bundle — it only grants what RLS allows. The service-role key bypasses RLS entirely and must only ever be used from Vercel serverless functions (`/api`), never from `src/`.
@@ -92,7 +92,7 @@ Every document bucket (`invoices`, `purchase-documents`, `employee-documents`, `
 
 ## 7. AI configuration
 
-Not yet connected. Invoice OCR and labour-list extraction will call an `OPENAI_API_KEY`-backed Vercel serverless function (never from the browser) and write to the `ai_scan_jobs`/`ai_scan_results`/`ai_extracted_items` staging tables — see `docs/business-workflows.md` §2–3. Until that function exists, the UI must show these features as **Pending Configuration**, not simulate them (spec §56).
+Invoice, quotation and labour-list scanning run in Vercel serverless functions (`api/scan-*.ts`, never from the browser) that call Google Gemini using `GEMINI_API_KEY` (model override: `GEMINI_MODEL`, default `gemini-2.5-flash`). Results land in staging tables for human review before anything becomes a real record.
 
 ## 8. Development commands
 
@@ -106,7 +106,7 @@ npm run preview        # preview the production build locally
 ## 9. Production deployment (Vercel)
 
 1. Import the repo into Vercel.
-2. Set environment variables in the Vercel project settings — `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` for the client build; `SUPABASE_SERVICE_ROLE_KEY` and `OPENAI_API_KEY` as **server-only** variables (not exposed to the client bundle — do not prefix with `VITE_`).
+2. Set environment variables in the Vercel project settings — `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` for the client build; `SUPABASE_SERVICE_ROLE_KEY` and `GEMINI_API_KEY` as **server-only** variables (not exposed to the client bundle — do not prefix with `VITE_`).
 3. Build command: `npm run build`. Output directory: `dist`.
 4. Apply any pending migrations to the production Supabase project *before* deploying code that depends on them.
 5. Server-side logic (AI calls, service-role operations) belongs in `/api` as Vercel serverless functions — stateless, no assumption of a persistent process.
