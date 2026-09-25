@@ -98,6 +98,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       res.status(200).json({ itemCount: rows.length })
     } catch (processingError) {
       const message = processingError instanceof Error ? processingError.message : 'Unknown processing error'
+      console.error('scan-labour-list processing failed', { importId, message })
       await admin.from('labour_list_imports').update({ status: 'failed' }).eq('id', importId)
       res.status(502).json({ error: message })
     }
@@ -107,6 +108,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return
     }
     const message = error instanceof Error ? error.message : 'Unknown error'
+    console.error('scan-labour-list failed', message)
     res.status(500).json({ error: message })
   }
 }

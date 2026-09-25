@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase/client'
+import { readApiResponse } from '@/lib/utils/readApiResponse'
 import type { ExtractedQuotation } from './quotationTypes'
 
 const ACCEPTED_MIME_TYPES = [
@@ -54,12 +55,12 @@ export function useScanQuotation() {
         body: JSON.stringify({ jobId }),
       })
 
-      const result = await response.json()
-      if (!response.ok) {
-        throw new Error(result.error || 'Scan failed')
-      }
+      const result = await readApiResponse<{ scanResultId: string; parsedData: ExtractedQuotation }>(
+        response,
+        'Quotation scan failed',
+      )
 
-      return { jobId: jobId as string, scanResultId: result.scanResultId as string, parsedData: result.parsedData as ExtractedQuotation }
+      return { jobId: jobId as string, scanResultId: result.scanResultId, parsedData: result.parsedData }
     },
     onError: (error: Error) => {
       toast.error('Unable to scan document', { description: error.message })

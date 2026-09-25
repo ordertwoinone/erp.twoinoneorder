@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase/client'
+import { readApiResponse } from '@/lib/utils/readApiResponse'
 
 const ACCEPTED_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp']
 
@@ -42,12 +43,9 @@ export function useScanLabourList() {
         body: JSON.stringify({ importId }),
       })
 
-      const result = await response.json()
-      if (!response.ok) {
-        throw new Error(result.error || 'Scan failed')
-      }
+      const result = await readApiResponse<{ itemCount: number }>(response, 'Labour list scan failed')
 
-      return { importId: importId as string, itemCount: result.itemCount as number }
+      return { importId: importId as string, itemCount: result.itemCount }
     },
     onError: (error: Error) => {
       toast.error('Unable to scan labour list', { description: error.message })

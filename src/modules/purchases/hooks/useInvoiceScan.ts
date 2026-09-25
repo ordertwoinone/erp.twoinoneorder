@@ -1,6 +1,7 @@
 import { useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase/client'
+import { readApiResponse } from '@/lib/utils/readApiResponse'
 
 const ACCEPTED_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp']
 
@@ -59,12 +60,12 @@ export function useScanInvoice() {
         body: JSON.stringify({ jobId }),
       })
 
-      const result = await response.json()
-      if (!response.ok) {
-        throw new Error(result.error || 'Scan failed')
-      }
+      const result = await readApiResponse<{ scanResultId: string; parsedData: ExtractedInvoice }>(
+        response,
+        'Invoice scan failed',
+      )
 
-      return { jobId: jobId as string, scanResultId: result.scanResultId as string, parsedData: result.parsedData as ExtractedInvoice }
+      return { jobId: jobId as string, scanResultId: result.scanResultId, parsedData: result.parsedData }
     },
     onError: (error: Error) => {
       toast.error('Unable to scan invoice', { description: error.message })
