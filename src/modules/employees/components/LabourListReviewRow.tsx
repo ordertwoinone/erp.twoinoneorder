@@ -30,6 +30,7 @@ export interface LabourListRowState {
   lastInCountryDate: string
   finalStatus: string
   baseSalary: string
+  labourFine: string
   settlementProofFile: File | null
   vacations: VacationEntry[]
 }
@@ -152,6 +153,15 @@ export function LabourListReviewRow({
           placeholder="Salary"
           value={row.baseSalary}
           onChange={(e) => onChange({ baseSalary: e.target.value })}
+        />
+        <Input
+          type="number"
+          step="0.01"
+          min="0"
+          className="mt-1 h-8"
+          placeholder="Labour fine (AED)"
+          value={row.labourFine}
+          onChange={(e) => onChange({ labourFine: e.target.value })}
         />
       </TableCell>
       <TableCell className="w-52 space-y-1.5">

@@ -12,7 +12,7 @@ export function useEmployeesQuery({ search, pageIndex }: { search: string; pageI
 
       let query = supabase
         .from('employees')
-        .select('id, employee_code, full_name, job_title, employment_status, current_restaurant_id, restaurants(name)', {
+        .select('id, employee_code, full_name, job_title, employment_status, current_restaurant_id, labour_person_number, labour_fine_amount, restaurants(name)', {
           count: 'exact',
         })
         .order('full_name')

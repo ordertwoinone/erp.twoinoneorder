@@ -60,7 +60,7 @@ export function useLabourListImportItemsQuery(importId: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('labour_list_import_items')
-        .select('*, employees(employee_code, full_name, emirates_id_expiry, base_salary, current_restaurant_id)')
+        .select('*, employees(employee_code, full_name, emirates_id_expiry, base_salary, current_restaurant_id, labour_fine_amount)')
         .eq('labour_list_import_id', importId!)
         .order('created_at')
       if (error) throw error
@@ -82,6 +82,8 @@ export interface ConfirmLabourListItemInput {
   lastInCountryDate: string | null
   finalStatus: string | null
   baseSalary: number | null
+  labourPersonNumber: string | null
+  labourFineAmount: number | null
   vacations: { start_date: string; end_date: string | null; paid_by: string | null; amount: number | null; notes: string | null }[]
   settlementProofFile: File | null
 }
@@ -105,6 +107,8 @@ export function useConfirmLabourListItem() {
           last_in_country_date: input.lastInCountryDate,
           final_status: input.finalStatus,
           base_salary: input.baseSalary,
+          labour_person_number: input.labourPersonNumber,
+          labour_fine_amount: input.labourFineAmount,
           vacations: input.vacations,
         } as never,
       })

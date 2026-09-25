@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/shared/PageHeader'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { DataTable } from '@/components/tables/DataTable'
 import { useAuth } from '@/hooks/useAuth'
+import { formatCurrency } from '@/lib/utils/format'
 import { useEmployeesQuery, EMPLOYEES_PAGE_SIZE } from '../hooks/useEmployees'
 import { EmployeeFormDialog } from '../components/EmployeeFormDialog'
 
@@ -17,6 +18,8 @@ interface EmployeeRow {
   full_name: string
   job_title: string | null
   employment_status: string
+  labour_person_number: string | null
+  labour_fine_amount: number | null
   restaurants: { name: string } | null
 }
 
@@ -39,6 +42,19 @@ export default function EmployeesListPage() {
         accessorKey: 'restaurants.name',
         header: 'Restaurant',
         cell: ({ row }) => row.original.restaurants?.name ?? '—',
+      },
+      {
+        accessorKey: 'labour_person_number',
+        header: 'Labour list no.',
+        cell: ({ getValue }) => (getValue() as string) || '—',
+      },
+      {
+        accessorKey: 'labour_fine_amount',
+        header: 'Labour fine',
+        cell: ({ getValue }) => {
+          const fine = getValue() as number | null
+          return fine ? <span className="font-medium text-destructive tabular-nums">{formatCurrency(fine)}</span> : '—'
+        },
       },
       {
         accessorKey: 'employment_status',

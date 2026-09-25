@@ -815,6 +815,8 @@ export interface Database {
           last_in_country_date: string | null
           settlement_proof_attachment_id: string | null
           final_status: 'cancel' | 'renew' | null
+          labour_person_number: string | null
+          labour_fine_amount: number | null
           is_shared_employee: boolean
           created_at: string
           updated_at: string

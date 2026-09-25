@@ -16,6 +16,8 @@ export const employeeSchema = z.object({
   medical_entry_date: z.string().optional().or(z.literal('')),
   last_in_country_date: z.string().optional().or(z.literal('')),
   final_status: z.enum(['renew', 'cancel']).optional().or(z.literal('')),
+  labour_person_number: z.string().trim().optional().or(z.literal('')),
+  labour_fine_amount: z.coerce.number().min(0, 'Fine cannot be negative').optional().or(z.literal('')),
 })
 
 export type EmployeeInput = z.infer<typeof employeeSchema>

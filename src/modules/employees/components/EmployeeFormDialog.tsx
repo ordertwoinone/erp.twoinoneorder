@@ -36,6 +36,8 @@ const emptyValues: EmployeeInput = {
   medical_entry_date: '',
   last_in_country_date: '',
   final_status: '',
+  labour_person_number: '',
+  labour_fine_amount: '',
 }
 
 export function EmployeeFormDialog({
@@ -84,6 +86,8 @@ export function EmployeeFormDialog({
         medical_entry_date: existing.medical_entry_date ?? '',
         last_in_country_date: existing.last_in_country_date ?? '',
         final_status: existing.final_status ?? '',
+        labour_person_number: existing.labour_person_number ?? '',
+        labour_fine_amount: existing.labour_fine_amount ?? '',
       })
     } else if (!employeeId) {
       reset(emptyValues)
@@ -216,6 +220,17 @@ export function EmployeeFormDialog({
               <div className="space-y-2">
                 <Label htmlFor="medical_entry_date">Medical entry</Label>
                 <Input id="medical_entry_date" type="date" {...register('medical_entry_date')} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="labour_person_number">Labour list no.</Label>
+                <Input id="labour_person_number" placeholder="Person number on MOHRE list" {...register('labour_person_number')} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="labour_fine_amount">Labour fine (AED)</Label>
+                <Input id="labour_fine_amount" type="number" step="0.01" min="0" {...register('labour_fine_amount')} />
+                {errors.labour_fine_amount && <p className="text-sm text-destructive">{errors.labour_fine_amount.message}</p>}
               </div>
             </div>
             <div className="space-y-2">

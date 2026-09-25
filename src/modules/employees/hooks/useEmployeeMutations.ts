@@ -23,6 +23,8 @@ export function useSaveEmployee() {
         medical_entry_date: input.medical_entry_date || null,
         last_in_country_date: input.last_in_country_date || null,
         final_status: input.final_status || null,
+        labour_person_number: input.labour_person_number || null,
+        labour_fine_amount: input.labour_fine_amount === '' || input.labour_fine_amount === undefined ? null : input.labour_fine_amount,
       }
 
       if (input.id) {

@@ -41,6 +41,7 @@ function toRowState(item: any, defaultRestaurantId: string): LabourListRowState 
     lastInCountryDate: '',
     finalStatus: '',
     baseSalary: matchedEmployee?.base_salary != null ? String(matchedEmployee.base_salary) : '',
+    labourFine: matchedEmployee?.labour_fine_amount != null ? String(matchedEmployee.labour_fine_amount) : '',
     settlementProofFile: null,
     vacations: [],
   }
@@ -92,6 +93,8 @@ export default function LabourListScanPage() {
         lastInCountryDate: row.lastInCountryDate || null,
         finalStatus: row.finalStatus || null,
         baseSalary: row.baseSalary ? Number(row.baseSalary) : null,
+        labourPersonNumber: row.personNumber,
+        labourFineAmount: row.labourFine ? Number(row.labourFine) : null,
         vacations: row.vacations
           .filter((v) => v.start_date)
           .map((v) => ({
@@ -195,7 +198,7 @@ export default function LabourListScanPage() {
                     <TableHead>Last in country</TableHead>
                     <TableHead>Emirates ID expiry</TableHead>
                     <TableHead>Medical entry</TableHead>
-                    <TableHead>Final status / Salary</TableHead>
+                    <TableHead>Final status / Salary / Labour fine</TableHead>
                     <TableHead>Vacations / Settlement</TableHead>
                     <TableHead />
                   </TableRow>
