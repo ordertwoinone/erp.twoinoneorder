@@ -190,7 +190,20 @@ $$;
 create or replace function public.get_dashboard_exceptions(
   p_restaurant_ids uuid[], p_period_start date, p_period_end date, p_limit int default 50
 )
-returns setof app.exception_rows
+returns table (
+  purchase_id uuid,
+  restaurant_id uuid,
+  restaurant_name text,
+  supplier_id uuid,
+  supplier_name text,
+  invoice_number text,
+  invoice_date date,
+  total_amount numeric,
+  exception_type text,
+  variance_pct numeric,
+  owner_name text,
+  status text
+)
 language sql
 stable
 security definer
