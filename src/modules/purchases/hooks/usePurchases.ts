@@ -5,11 +5,16 @@ import type { Database } from '@/types/database'
 const PAGE_SIZE = 20
 
 type PurchaseStatus = Database['public']['Tables']['purchases']['Row']['status']
+type PurchasePaymentStatus = Database['public']['Tables']['purchases']['Row']['payment_status']
 
 export interface PurchaseFilters {
   search: string
   status: PurchaseStatus | 'all'
+  paymentStatus?: PurchasePaymentStatus | 'all'
   restaurantId: string | null
+  supplierId?: string | null
+  invoiceDateFrom?: string | null
+  invoiceDateTo?: string | null
   pageIndex: number
 }
 
@@ -30,7 +35,11 @@ export function usePurchasesQuery(filters: PurchaseFilters) {
         .range(from, to)
 
       if (filters.status !== 'all') query = query.eq('status', filters.status)
+      if (filters.paymentStatus && filters.paymentStatus !== 'all') query = query.eq('payment_status', filters.paymentStatus)
       if (filters.restaurantId) query = query.eq('restaurant_id', filters.restaurantId)
+      if (filters.supplierId) query = query.eq('supplier_id', filters.supplierId)
+      if (filters.invoiceDateFrom) query = query.gte('invoice_date', filters.invoiceDateFrom)
+      if (filters.invoiceDateTo) query = query.lte('invoice_date', filters.invoiceDateTo)
       if (filters.search.trim()) {
         query = query.or(`invoice_number.ilike.%${filters.search.trim()}%,purchase_number.ilike.%${filters.search.trim()}%`)
       }
@@ -49,7 +58,10 @@ export function usePurchaseQuery(id: string | undefined) {
     queryFn: async () => {
       const [purchaseRes, itemsRes, approvalsRes] = await Promise.all([
         supabase.from('purchases').select('*, restaurants(name), suppliers(name)').eq('id', id!).single(),
-        supabase.from('purchase_items').select('*, products(name, sku), units(name, code)').eq('purchase_id', id!),
+        supabase
+          .from('purchase_items')
+          .select('*, products(name, sku, brands(name)), units(name, code)')
+          .eq('purchase_id', id!),
         supabase
           .from('approvals')
           .select('*, profiles(full_name)')

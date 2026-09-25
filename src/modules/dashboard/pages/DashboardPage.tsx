@@ -1,91 +1,82 @@
-import { Building2, ClipboardCheck, ShieldCheck, Users } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Skeleton } from '@/components/ui/skeleton'
+import { useMemo } from 'react'
+import { PageHeader } from '@/components/shared/PageHeader'
 import { useAuth } from '@/hooks/useAuth'
+import { useRestaurantScope } from '@/hooks/useRestaurantScope'
 import { useRestaurantsQuery } from '@/hooks/useRestaurantsQuery'
+import { PeriodSelector } from '../components/PeriodSelector'
+import { PipelineStrip } from '../components/PipelineStrip'
+import { KpiCards } from '../components/KpiCards'
+import { ExceptionQueue } from '../components/ExceptionQueue'
+import { SupplierPerformancePanel } from '../components/SupplierPerformancePanel'
+import { AccountingOverview } from '../components/AccountingOverview'
+import { usePeriodScope } from '../hooks/usePeriodScope'
+import {
+  usePipelineCountsQuery,
+  useDashboardKpisQuery,
+  useDashboardExceptionsQuery,
+  useSupplierPerformanceQuery,
+  useAccountingOverviewQuery,
+  type DashboardScope,
+} from '../hooks/useDashboardData'
 
 export default function DashboardPage() {
   const { appContext } = useAuth()
-  const { data: restaurants, isLoading } = useRestaurantsQuery()
+  const { selectedRestaurantId, canSwitchRestaurants } = useRestaurantScope()
+  const { data: restaurants = [] } = useRestaurantsQuery()
+  const period = usePeriodScope()
+
+  const scope = useMemo<DashboardScope>(
+    () => ({
+      restaurantIds: selectedRestaurantId ? [selectedRestaurantId] : null,
+      periodStart: period.periodStart,
+      periodEnd: period.periodEnd,
+    }),
+    [selectedRestaurantId, period.periodStart, period.periodEnd],
+  )
+
+  const pipeline = usePipelineCountsQuery(scope)
+  const kpis = useDashboardKpisQuery(scope)
+  const exceptions = useDashboardExceptionsQuery(scope)
+  const supplierPerformance = useSupplierPerformanceQuery(scope)
+  const accountingOverview = useAccountingOverviewQuery(scope)
+
+  const scopedRestaurants = selectedRestaurantId
+    ? restaurants.filter((r) => r.id === selectedRestaurantId)
+    : restaurants
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Welcome back{appContext ? `, ${appContext.fullName.split(' ')[0]}` : ''}
-        </h1>
-        <p className="text-muted-foreground">
-          {appContext?.isAllRestaurants
-            ? 'Head office view — all restaurants.'
-            : 'Here is what needs your attention today.'}
-        </p>
-      </div>
+      <PageHeader
+        title={canSwitchRestaurants && !selectedRestaurantId ? 'Group Operations' : 'Dashboard'}
+        description={
+          canSwitchRestaurants && !selectedRestaurantId
+            ? `${restaurants.length} restaurants · consolidated view`
+            : `Welcome back, ${appContext?.fullName ?? ''}`
+        }
+        actions={<PeriodSelector period={period} />}
+      />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Restaurants</CardTitle>
-            <Building2 className="size-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {isLoading ? <Skeleton className="h-8 w-12" /> : <div className="text-2xl font-bold">{restaurants?.length ?? 0}</div>}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Your Roles</CardTitle>
-            <ShieldCheck className="size-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-1">
-              {appContext?.roleKeys.length ? (
-                appContext.roleKeys.map((key) => (
-                  <Badge key={key} variant="secondary">
-                    {key.replace(/_/g, ' ')}
-                  </Badge>
-                ))
-              ) : (
-                <span className="text-sm text-muted-foreground">No role assigned</span>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Pending Approvals</CardTitle>
-            <ClipboardCheck className="size-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-muted-foreground">—</div>
-            <p className="text-xs text-muted-foreground">Purchasing module not yet built</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Team</CardTitle>
-            <Users className="size-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-muted-foreground">—</div>
-            <p className="text-xs text-muted-foreground">Employees module not yet built</p>
-          </CardContent>
-        </Card>
-      </div>
+      <PipelineStrip counts={pipeline.data} isLoading={pipeline.isLoading} />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Foundation phase</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2 text-sm text-muted-foreground">
-          <p>
-            Authentication, RBAC, restaurant isolation and the application shell are live. Role-specific dashboard
-            widgets (purchases, price alerts, settlements, P&L) come online as each module in
-            <code className="mx-1 rounded bg-muted px-1 py-0.5">docs/architecture.md</code>
-            is built.
-          </p>
-        </CardContent>
-      </Card>
+      <KpiCards kpis={kpis.data} isLoading={kpis.isLoading} />
+
+      <ExceptionQueue exceptions={exceptions.data} isLoading={exceptions.isLoading} />
+
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <SupplierPerformancePanel
+          suppliers={supplierPerformance.data}
+          isLoading={supplierPerformance.isLoading}
+          periodStart={period.periodStart}
+          periodEnd={period.periodEnd}
+        />
+        <AccountingOverview
+          overview={accountingOverview.data}
+          isLoading={accountingOverview.isLoading}
+          restaurants={scopedRestaurants}
+          periodStart={period.periodStart}
+          periodEnd={period.periodEnd}
+        />
+      </div>
     </div>
   )
 }

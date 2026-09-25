@@ -8,6 +8,15 @@ export const purchaseItemSchema = z.object({
   unit_price: z.coerce.number().min(0, 'Price cannot be negative'),
   discount_amount: z.coerce.number().min(0),
   tax_amount: z.coerce.number().min(0),
+  // Display-only metadata carried alongside the line for the New Purchase
+  // page (from item search / previous purchases) — never sent to
+  // save_purchase_draft, which only reads the fields above.
+  product_name: z.string().optional(),
+  brand_name: z.string().optional(),
+  pack_label: z.string().optional(),
+  unit_code: z.string().optional(),
+  agreed_price: z.number().nullable().optional(),
+  last_purchase_price: z.number().nullable().optional(),
 })
 export type PurchaseItemInput = z.infer<typeof purchaseItemSchema>
 

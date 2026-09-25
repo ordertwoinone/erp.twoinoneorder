@@ -141,6 +141,7 @@ export interface Database {
           salesman_name: string | null
           credit_limit_amount: number | null
           credit_limit_currency: 'AED' | 'USD' | 'EUR' | 'INR' | 'EGP' | null
+          supplier_type: 'distributor' | 'manufacturer' | 'wholesaler' | 'farm' | 'importer' | 'other' | null
           is_active: boolean
           created_by: string | null
           created_at: string
@@ -149,6 +150,20 @@ export interface Database {
         Insert: Partial<Database['public']['Tables']['suppliers']['Row']> & { code: string; name: string }
         Update: Partial<Database['public']['Tables']['suppliers']['Row']>
         Relationships: []
+      }
+      supplier_categories: {
+        Row: { supplier_id: string; category_id: string }
+        Insert: { supplier_id: string; category_id: string }
+        Update: Partial<Database['public']['Tables']['supplier_categories']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'supplier_categories_category_id_fkey'
+            columns: ['category_id']
+            isOneToOne: false
+            referencedRelation: 'categories'
+            referencedColumns: ['id']
+          },
+        ]
       }
       supplier_price_locks: {
         Row: {
@@ -232,6 +247,7 @@ export interface Database {
         Row: {
           id: string
           sku: string | null
+          barcode: string | null
           name: string
           description: string | null
           category_id: string | null
@@ -335,6 +351,143 @@ export interface Database {
             columns: ['unit_id']
             isOneToOne: false
             referencedRelation: 'units'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      purchase_orders: {
+        Row: {
+          id: string
+          order_number: string
+          restaurant_id: string
+          supplier_id: string
+          purchase_request_id: string | null
+          status: 'draft' | 'ordered' | 'partially_received' | 'received' | 'closed' | 'cancelled'
+          order_date: string
+          expected_date: string | null
+          notes: string | null
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['purchase_orders']['Row']> & {
+          order_number: string
+          restaurant_id: string
+          supplier_id: string
+        }
+        Update: Partial<Database['public']['Tables']['purchase_orders']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'purchase_orders_restaurant_id_fkey'
+            columns: ['restaurant_id']
+            isOneToOne: false
+            referencedRelation: 'restaurants'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'purchase_orders_supplier_id_fkey'
+            columns: ['supplier_id']
+            isOneToOne: false
+            referencedRelation: 'suppliers'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      purchase_order_items: {
+        Row: {
+          id: string
+          purchase_order_id: string
+          product_id: string
+          unit_id: string
+          pack_size: number | null
+          quantity: number
+          unit_price: number
+          quantity_received: number
+        }
+        Insert: Partial<Database['public']['Tables']['purchase_order_items']['Row']> & {
+          purchase_order_id: string
+          product_id: string
+          unit_id: string
+          quantity: number
+          unit_price: number
+        }
+        Update: Partial<Database['public']['Tables']['purchase_order_items']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'purchase_order_items_product_id_fkey'
+            columns: ['product_id']
+            isOneToOne: false
+            referencedRelation: 'products'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      goods_receipts: {
+        Row: {
+          id: string
+          receipt_number: string
+          restaurant_id: string
+          purchase_order_id: string | null
+          purchase_id: string | null
+          status: 'draft' | 'confirmed' | 'cancelled'
+          received_date: string
+          received_by: string | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['goods_receipts']['Row']> & {
+          receipt_number: string
+          restaurant_id: string
+        }
+        Update: Partial<Database['public']['Tables']['goods_receipts']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'goods_receipts_restaurant_id_fkey'
+            columns: ['restaurant_id']
+            isOneToOne: false
+            referencedRelation: 'restaurants'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'goods_receipts_purchase_order_id_fkey'
+            columns: ['purchase_order_id']
+            isOneToOne: false
+            referencedRelation: 'purchase_orders'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'goods_receipts_purchase_id_fkey'
+            columns: ['purchase_id']
+            isOneToOne: false
+            referencedRelation: 'purchases'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      goods_receipt_items: {
+        Row: {
+          id: string
+          goods_receipt_id: string
+          product_id: string
+          unit_id: string
+          quantity_received: number
+          quantity_shortage: number
+          notes: string | null
+        }
+        Insert: Partial<Database['public']['Tables']['goods_receipt_items']['Row']> & {
+          goods_receipt_id: string
+          product_id: string
+          unit_id: string
+          quantity_received: number
+        }
+        Update: Partial<Database['public']['Tables']['goods_receipt_items']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'goods_receipt_items_product_id_fkey'
+            columns: ['product_id']
+            isOneToOne: false
+            referencedRelation: 'products'
             referencedColumns: ['id']
           },
         ]
@@ -1251,7 +1404,46 @@ export interface Database {
         Returns: string
       }
       quick_create_product: {
-        Args: { p_name: string; p_base_unit_id: string; p_sku?: string | null }
+        Args: {
+          p_name: string
+          p_base_unit_id: string
+          p_sku?: string | null
+          p_brand_id?: string | null
+          p_barcode?: string | null
+        }
+        Returns: string
+      }
+      search_items_for_purchase: {
+        Args: { p_supplier_id: string; p_restaurant_id: string; p_search: string | null; p_limit?: number }
+        Returns: {
+          product_id: string
+          name: string
+          sku: string | null
+          barcode: string | null
+          brand_name: string | null
+          category_name: string | null
+          base_unit_id: string
+          base_unit_code: string
+          pack_size: number | null
+          pack_unit_code: string | null
+          agreed_price: number | null
+          last_purchase_price: number | null
+          last_purchase_date: string | null
+        }[]
+      }
+      create_invoice_scan_job: {
+        Args: {
+          p_restaurant_id: string
+          p_supplier_id: string | null
+          p_storage_path: string
+          p_file_name: string
+          p_mime_type: string
+          p_file_size_bytes: number
+        }
+        Returns: string
+      }
+      confirm_purchase_scan: {
+        Args: { p_scan_result_id: string; payload: Json }
         Returns: string
       }
       save_price_lock: {
@@ -1261,6 +1453,71 @@ export interface Database {
       confirm_supplier_price_locks: {
         Args: { p_scan_result_id: string; p_items: Json }
         Returns: undefined
+      }
+      get_dashboard_pipeline_counts: {
+        Args: { p_restaurant_ids: string[] | null; p_period_start: string; p_period_end: string }
+        Returns: {
+          request_count: number
+          order_count: number
+          receive_count: number
+          invoice_count: number
+          approve_awaiting_count: number
+          pay_awaiting_count: number
+          reconcile_count: number | null
+        }[]
+      }
+      get_dashboard_kpis: {
+        Args: { p_restaurant_ids: string[] | null; p_period_start: string; p_period_end: string }
+        Returns: {
+          purchases_total: number
+          purchases_prior: number
+          sales_total: number
+          sales_prior: number
+          payables_total: number
+          payables_prior: number
+          exceptions_count: number
+          exceptions_prior_count: number
+        }[]
+      }
+      get_dashboard_exceptions: {
+        Args: { p_restaurant_ids: string[] | null; p_period_start: string; p_period_end: string; p_limit?: number }
+        Returns: {
+          purchase_id: string
+          restaurant_id: string
+          restaurant_name: string
+          supplier_id: string
+          supplier_name: string
+          invoice_number: string
+          invoice_date: string
+          total_amount: number
+          exception_type: 'price_above_contract' | 'missing_goods_receipt' | 'duplicate_invoice'
+          variance_pct: number | null
+          owner_name: string | null
+          status: string
+        }[]
+      }
+      get_supplier_performance: {
+        Args: { p_restaurant_ids: string[] | null; p_period_start: string; p_period_end: string; p_limit?: number }
+        Returns: {
+          supplier_id: string
+          supplier_name: string
+          supplier_type: string | null
+          purchase_volume: number
+          price_increase_count: number
+          price_increase_value: number
+          price_decrease_count: number
+          price_decrease_value: number
+          has_sufficient_data: boolean
+        }[]
+      }
+      get_dashboard_accounting_overview: {
+        Args: { p_restaurant_ids: string[] | null; p_period_start: string; p_period_end: string }
+        Returns: {
+          bank_reconciled_count: number | null
+          bank_total_count: number | null
+          vat_payable: number | null
+          unsettled_card_amount: number | null
+        }[]
       }
     }
     Enums: Record<string, never>

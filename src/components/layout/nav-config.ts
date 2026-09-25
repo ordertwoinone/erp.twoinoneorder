@@ -7,6 +7,8 @@ import {
   CreditCard,
   FileBarChart,
   LayoutDashboard,
+  PackageCheck,
+  PackageSearch,
   Receipt,
   Settings,
   ShoppingCart,
@@ -37,8 +39,10 @@ export const navSections: NavSection[] = [
   {
     label: 'Purchasing',
     items: [
-      { label: 'Purchases', to: '/purchases', icon: ShoppingCart, permission: 'purchases.create' },
       { label: 'Purchase Requests', to: '/purchases/requests', icon: ClipboardList, permission: 'purchases.create' },
+      { label: 'Purchase Orders', to: '/purchases/orders', icon: PackageSearch, permission: 'purchase_orders.manage' },
+      { label: 'Goods Receipts', to: '/purchases/receipts', icon: PackageCheck, permission: 'purchases.create' },
+      { label: 'Purchases (Invoices)', to: '/purchases', icon: ShoppingCart, permission: 'purchases.create' },
       { label: 'Suppliers', to: '/suppliers', icon: Truck, permission: 'suppliers.manage' },
     ],
   },

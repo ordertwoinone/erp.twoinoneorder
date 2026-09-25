@@ -17,6 +17,18 @@ export function useProductsOptions() {
   })
 }
 
+export function useBrandsOptions() {
+  return useQuery({
+    queryKey: ['catalog', 'brands'],
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const { data, error } = await supabase.from('brands').select('id, name').eq('is_active', true).order('name')
+      if (error) throw error
+      return data
+    },
+  })
+}
+
 export function useUnitsOptions() {
   return useQuery({
     queryKey: ['catalog', 'units'],
@@ -36,7 +48,7 @@ export function useSuppliersOptions() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('suppliers')
-        .select('id, code, name')
+        .select('id, code, name, payment_terms_days')
         .eq('is_active', true)
         .order('name')
       if (error) throw error

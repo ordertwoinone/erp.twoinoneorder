@@ -4,34 +4,50 @@ import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase/client'
 import type { PurchaseFormInput } from '@/schemas/purchase'
 
+function buildPayload(input: PurchaseFormInput) {
+  return {
+    id: input.id ?? null,
+    restaurant_id: input.restaurant_id,
+    supplier_id: input.supplier_id,
+    invoice_number: input.invoice_number,
+    invoice_date: input.invoice_date,
+    notes: input.notes ?? null,
+    items: input.items.map((item) => ({
+      product_id: item.product_id,
+      unit_id: item.unit_id,
+      pack_size: item.pack_size === '' ? null : item.pack_size,
+      quantity: item.quantity,
+      unit_price: item.unit_price,
+      discount_amount: item.discount_amount,
+      tax_amount: item.tax_amount,
+    })),
+  }
+}
+
+interface SaveInput {
+  values: PurchaseFormInput
+  /** Set when this draft originated from a reviewed AI invoice scan. */
+  scanResultId?: string | null
+}
+
+async function savePurchase({ values, scanResultId }: SaveInput): Promise<string> {
+  const payload = buildPayload(values)
+  if (scanResultId) {
+    const { data, error } = await supabase.rpc('confirm_purchase_scan', { p_scan_result_id: scanResultId, payload: payload as never })
+    if (error) throw error
+    return data as string
+  }
+  const { data, error } = await supabase.rpc('save_purchase_draft', { payload: payload as never })
+  if (error) throw error
+  return data as string
+}
+
 export function useSavePurchaseDraft() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
 
   return useMutation({
-    mutationFn: async (input: PurchaseFormInput) => {
-      const { data, error } = await supabase.rpc('save_purchase_draft', {
-        payload: {
-          id: input.id ?? null,
-          restaurant_id: input.restaurant_id,
-          supplier_id: input.supplier_id,
-          invoice_number: input.invoice_number,
-          invoice_date: input.invoice_date,
-          notes: input.notes ?? null,
-          items: input.items.map((item) => ({
-            product_id: item.product_id,
-            unit_id: item.unit_id,
-            pack_size: item.pack_size === '' ? null : item.pack_size,
-            quantity: item.quantity,
-            unit_price: item.unit_price,
-            discount_amount: item.discount_amount,
-            tax_amount: item.tax_amount,
-          })),
-        },
-      })
-      if (error) throw error
-      return data as string
-    },
+    mutationFn: savePurchase,
     onSuccess: (purchaseId) => {
       queryClient.invalidateQueries({ queryKey: ['purchases'] })
       toast.success('Purchase saved as draft')
@@ -39,6 +55,29 @@ export function useSavePurchaseDraft() {
     },
     onError: (error: Error) => {
       toast.error('Unable to save purchase', { description: error.message })
+    },
+  })
+}
+
+/** Saves the draft (or confirms a scan) and immediately submits it for approval, in one action. */
+export function useSubmitPurchaseForApproval() {
+  const queryClient = useQueryClient()
+  const navigate = useNavigate()
+
+  return useMutation({
+    mutationFn: async (input: SaveInput) => {
+      const purchaseId = await savePurchase(input)
+      const { error } = await supabase.rpc('transition_purchase', { p_purchase_id: purchaseId, p_action: 'submit' })
+      if (error) throw error
+      return purchaseId
+    },
+    onSuccess: (purchaseId) => {
+      queryClient.invalidateQueries({ queryKey: ['purchases'] })
+      toast.success('Submitted for approval')
+      navigate(`/purchases/${purchaseId}`)
+    },
+    onError: (error: Error) => {
+      toast.error('Unable to submit purchase', { description: error.message })
     },
   })
 }

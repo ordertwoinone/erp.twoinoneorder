@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Plus, Search } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Button } from '@/components/ui/button'
@@ -42,14 +42,22 @@ export default function PurchasesListPage() {
   const { hasPermission } = useAuth()
   const { selectedRestaurantId } = useRestaurantScope()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const supplierId = searchParams.get('supplier')
   const [search, setSearch] = useState('')
-  const [status, setStatus] = useState<PurchaseStatusFilter>('all')
+  const [status, setStatus] = useState<PurchaseStatusFilter>(
+    (searchParams.get('status') as PurchaseStatusFilter) ?? 'all',
+  )
   const [pageIndex, setPageIndex] = useState(0)
 
   const { data, isLoading } = usePurchasesQuery({
     search,
     status,
+    paymentStatus: (searchParams.get('payment') as PurchaseFilters['paymentStatus']) ?? 'all',
     restaurantId: selectedRestaurantId,
+    supplierId,
+    invoiceDateFrom: searchParams.get('from'),
+    invoiceDateTo: searchParams.get('to'),
     pageIndex,
   })
 
