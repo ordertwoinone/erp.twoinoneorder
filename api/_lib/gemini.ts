@@ -1,5 +1,6 @@
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models'
 const DEFAULT_MODEL = 'gemini-3.8-flash'
+const RETRY_DELAYS_MS = [2000, 5000, 10000]
 
 type JsonSchema = Record<string, unknown>
 
@@ -61,23 +62,43 @@ export async function callGemini<T>({
   })
 
   let model = process.env.GEMINI_MODEL || DEFAULT_MODEL
-  let { response, raw } = await generate(apiKey, model, body)
+  let { response, raw } = await generateWithRetry(apiKey, model, body, RETRY_DELAYS_MS)
 
   // Google retires model versions for new keys with little notice. Rather
-  // than break every scan until the code is edited, retry once on a model
-  // that's actually available: the one Google names in the error, or the
-  // newest Flash model this key can list.
+  // than break every scan until the code is edited, retry on a model that's
+  // actually available: the one Google names in the error, or the newest
+  // Flash model this key can list.
   if (!response.ok && isModelUnavailable(response.status, raw)) {
-    const replacement = suggestedModel(raw) ?? (await newestFlashModel(apiKey))
+    const replacement = suggestedModel(raw) ?? (await listFlashModels(apiKey)).find((m) => !m.endsWith('-lite')) ?? null
     if (replacement && replacement !== model) {
       console.warn(`Gemini model "${model}" unavailable, retrying with "${replacement}"`)
       model = replacement
-      ;({ response, raw } = await generate(apiKey, model, body))
+      ;({ response, raw } = await generateWithRetry(apiKey, model, body, RETRY_DELAYS_MS))
+    }
+  }
+
+  // Still overloaded after backing off: a busy model is usually busy for
+  // everyone on it, so a different Flash model tends to get through.
+  if (!response.ok && isTransient(response.status, raw)) {
+    const fallback =
+      process.env.GEMINI_FALLBACK_MODEL || (await listFlashModels(apiKey)).find((m) => m !== model) || null
+    if (fallback && fallback !== model) {
+      console.warn(`Gemini model "${model}" overloaded, falling back to "${fallback}"`)
+      model = fallback
+      ;({ response, raw } = await generateWithRetry(apiKey, model, body, [3000]))
     }
   }
 
   if (!response.ok) {
-    const message = raw?.error?.message || `Gemini request failed with status ${response.status}`
+    const message: string = raw?.error?.message || `Gemini request failed with status ${response.status}`
+    if (response.status === 429) {
+      throw new Error(
+        `Gemini usage limit reached for this API key (${message}). Wait a minute and retry; if it keeps happening, check the key's quota/billing in Google AI Studio.`,
+      )
+    }
+    if (isTransient(response.status, raw)) {
+      throw new Error('Google Gemini is busy right now (high demand). Please try the scan again in a minute.')
+    }
     throw new Error(`Gemini (${model}): ${message}`)
   }
 
@@ -105,6 +126,28 @@ async function generate(apiKey: string, model: string, body: string) {
   return { response, raw }
 }
 
+/** Retries the same model on transient overload/rate errors, waiting between attempts. */
+async function generateWithRetry(apiKey: string, model: string, body: string, delaysMs: number[]) {
+  let result = await generate(apiKey, model, body)
+  for (const delay of delaysMs) {
+    if (result.response.ok || !isTransient(result.response.status, result.raw)) break
+    await new Promise((resolve) => setTimeout(resolve, delay))
+    result = await generate(apiKey, model, body)
+  }
+  return result
+}
+
+/** "High demand", overloaded (503), internal hiccups (500) and rate limits (429) — all worth retrying. */
+function isTransient(status: number, raw: any): boolean {
+  const message: string = raw?.error?.message ?? ''
+  return (
+    status === 429 ||
+    status === 500 ||
+    status === 503 ||
+    /high demand|overloaded|try again later|\bunavailable\b/i.test(message)
+  )
+}
+
 function isModelUnavailable(status: number, raw: any): boolean {
   const message: string = raw?.error?.message ?? ''
   return status === 404 || /no longer available|not found|is not supported|deprecated/i.test(message)
@@ -117,16 +160,17 @@ function suggestedModel(raw: any): string | null {
   return match ? match[1] : null
 }
 
-async function newestFlashModel(apiKey: string): Promise<string | null> {
+/** Flash models this key can use, newest version first, full Flash before Flash-Lite. */
+async function listFlashModels(apiKey: string): Promise<string[]> {
   const response = await fetch(`${GEMINI_API_BASE}?pageSize=200`, { headers: { 'x-goog-api-key': apiKey } })
-  if (!response.ok) return null
+  if (!response.ok) return []
   const data = (await response.json().catch(() => null)) as { models?: { name: string; supportedGenerationMethods?: string[] }[] } | null
-  const candidates = (data?.models ?? [])
+  const version = (name: string) => parseFloat(name.slice('gemini-'.length))
+  return (data?.models ?? [])
     .filter((m) => m.supportedGenerationMethods?.includes('generateContent'))
     .map((m) => m.name.replace(/^models\//, ''))
-    .filter((name) => /^gemini-[\d.]+-flash$/.test(name))
-  candidates.sort((a, b) => parseFloat(b.slice(7)) - parseFloat(a.slice(7)))
-  return candidates[0] ?? null
+    .filter((name) => /^gemini-[\d.]+-flash(-lite)?$/.test(name))
+    .sort((a, b) => version(b) - version(a) || Number(a.endsWith('-lite')) - Number(b.endsWith('-lite')))
 }
 
 /** A PDF or image file, sent inline alongside the instructions. */
