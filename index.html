@@ -5,6 +5,19 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ERP.TWOINONEORDER</title>
+    <script>
+      // Apply saved appearance before first paint (mirrors src/lib/theme/theme.ts applyTheme).
+      try {
+        var p = JSON.parse(localStorage.getItem('erp-appearance') || '{}'), r = document.documentElement;
+        var dark = p.mode === 'dark' || (p.mode === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
+        if (dark) r.classList.add('dark');
+        r.style.colorScheme = dark ? 'dark' : 'light';
+        if (p.accent && p.accent !== 'navy') r.setAttribute('data-accent', p.accent);
+        if (p.sidebar && p.sidebar !== 'light') r.setAttribute('data-sidebar-style', p.sidebar);
+        if (p.radius && p.radius !== 'default') r.setAttribute('data-radius', p.radius);
+        if (p.fontSize && p.fontSize !== 'default') r.setAttribute('data-font-size', p.fontSize);
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

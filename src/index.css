@@ -86,7 +86,8 @@
   --success-foreground: oklch(0.17 0.012 264);
 
   --warning: oklch(0.72 0.16 75);
-  --warning-foreground: oklch(0.17 0.012 264);
+  /* Used almost everywhere as text on a faint amber tint, so light here. */
+  --warning-foreground: oklch(0.85 0.13 85);
 
   --border: oklch(1 0 0 / 12%);
   --input: oklch(1 0 0 / 16%);
@@ -107,6 +108,59 @@
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.72 0.09 262);
 }
+
+/* === Theme options (Settings → Appearance) ===================================
+   Set as attributes on <html> by src/lib/theme.ts. Each accent needs both a
+   light rule and a `.dark` rule: the light rule comes after `.dark` above, so
+   the higher-specificity `.dark[data-accent]` is what restores dark values. */
+[data-accent="blue"] { --primary: oklch(0.5 0.2 260); --primary-foreground: oklch(0.98 0.005 264); }
+.dark[data-accent="blue"] { --primary: oklch(0.7 0.15 260); --primary-foreground: oklch(0.17 0.012 264); }
+[data-accent="emerald"] { --primary: oklch(0.52 0.13 160); --primary-foreground: oklch(0.98 0.005 264); }
+.dark[data-accent="emerald"] { --primary: oklch(0.72 0.14 160); --primary-foreground: oklch(0.17 0.012 264); }
+[data-accent="teal"] { --primary: oklch(0.52 0.1 195); --primary-foreground: oklch(0.98 0.005 264); }
+.dark[data-accent="teal"] { --primary: oklch(0.74 0.11 195); --primary-foreground: oklch(0.17 0.012 264); }
+[data-accent="violet"] { --primary: oklch(0.5 0.2 295); --primary-foreground: oklch(0.98 0.005 264); }
+.dark[data-accent="violet"] { --primary: oklch(0.72 0.15 295); --primary-foreground: oklch(0.17 0.012 264); }
+[data-accent="rose"] { --primary: oklch(0.55 0.2 12); --primary-foreground: oklch(0.98 0.005 264); }
+.dark[data-accent="rose"] { --primary: oklch(0.72 0.16 12); --primary-foreground: oklch(0.17 0.012 264); }
+[data-accent="orange"] { --primary: oklch(0.6 0.18 45); --primary-foreground: oklch(0.99 0.005 264); }
+.dark[data-accent="orange"] { --primary: oklch(0.75 0.15 50); --primary-foreground: oklch(0.17 0.012 264); }
+[data-accent="amber"] { --primary: oklch(0.75 0.16 75); --primary-foreground: oklch(0.2 0.02 264); }
+.dark[data-accent="amber"] { --primary: oklch(0.8 0.15 80); --primary-foreground: oklch(0.17 0.012 264); }
+[data-accent="slate"] { --primary: oklch(0.3 0.02 264); --primary-foreground: oklch(0.98 0.005 264); }
+.dark[data-accent="slate"] { --primary: oklch(0.88 0.01 264); --primary-foreground: oklch(0.17 0.012 264); }
+
+/* Focus rings, sidebar highlight and the first chart series follow the accent. */
+[data-accent] {
+  --ring: var(--primary);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-ring: var(--primary);
+  --chart-1: var(--primary);
+}
+
+[data-sidebar-style="dark"] {
+  --sidebar: oklch(0.2 0.015 264);
+  --sidebar-foreground: oklch(0.96 0.005 264);
+  --sidebar-accent: oklch(0.29 0.016 264);
+  --sidebar-accent-foreground: oklch(0.98 0.005 264);
+  --sidebar-border: oklch(1 0 0 / 10%);
+}
+[data-sidebar-style="accent"] {
+  --sidebar: var(--primary);
+  --sidebar-foreground: var(--primary-foreground);
+  --sidebar-accent: color-mix(in oklch, var(--primary-foreground) 18%, var(--primary));
+  --sidebar-accent-foreground: var(--primary-foreground);
+  --sidebar-border: color-mix(in oklch, var(--primary-foreground) 15%, transparent);
+  --sidebar-primary: var(--primary-foreground);
+  --sidebar-primary-foreground: var(--primary);
+}
+
+[data-radius="none"] { --radius: 0.125rem; }
+[data-radius="large"] { --radius: 0.85rem; }
+
+[data-font-size="small"] { font-size: 14px; }
+[data-font-size="large"] { font-size: 17px; }
 
 @theme inline {
   --color-background: var(--background);

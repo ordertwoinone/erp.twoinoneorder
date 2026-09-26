@@ -18,7 +18,8 @@ const badgeVariants = cva(
         ghost: "[a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
         link: "text-primary underline-offset-4 [a&]:hover:underline",
         success: "bg-success text-success-foreground [a&]:hover:bg-success/90",
-        warning: "bg-warning text-warning-foreground [a&]:hover:bg-warning/90",
+        // Fixed dark text: --warning-foreground is light in dark mode (it's mostly used on amber tints).
+        warning: "bg-warning text-neutral-900 [a&]:hover:bg-warning/90",
       },
     },
     defaultVariants: {

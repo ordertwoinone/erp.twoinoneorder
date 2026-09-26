@@ -78,6 +78,7 @@ const moduleRoutes: ModuleRoute[] = [
 
   { path: '/settings/users', permission: 'users.manage', Component: lazy(() => import('@/modules/settings/pages/UsersAdminPage')) },
   { path: '/settings/restaurants', permission: 'restaurants.manage', Component: lazy(() => import('@/modules/settings/pages/RestaurantsAdminPage')) },
+  { path: '/settings/appearance', Component: lazy(() => import('@/modules/settings/pages/AppearancePage')) },
 
   { path: '/accounting', permission: 'accounting.view', Component: lazy(() => import('@/modules/accounting/pages/AccountingPage')) },
   { path: '/reports', permission: 'reports.view', Component: lazy(() => import('@/modules/reports/pages/ReportsPage')) },

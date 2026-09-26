@@ -14,6 +14,7 @@ import {
   LayoutDashboard,
   PackageCheck,
   PackageSearch,
+  Palette,
   Receipt,
   Settings,
   ShoppingCart,
@@ -93,6 +94,7 @@ export const navSections: NavSection[] = [
     items: [
       { label: 'Users', to: '/settings/users', icon: UserCog, permission: 'users.manage' },
       { label: 'Restaurants', to: '/settings/restaurants', icon: Settings, permission: 'restaurants.manage' },
+      { label: 'Appearance', to: '/settings/appearance', icon: Palette },
     ],
   },
 ]

@@ -1,4 +1,5 @@
-import { Bell, LogOut, Menu, User } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Bell, LogOut, Menu, Moon, Palette, Sun, User } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import {
@@ -11,6 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { useAuth } from '@/hooks/useAuth'
+import { useTheme } from '@/hooks/useTheme'
 import { RestaurantSwitcher } from './RestaurantSwitcher'
 import { SidebarNav } from './Sidebar'
 
@@ -25,6 +27,7 @@ function initials(name: string) {
 
 export function Header() {
   const { appContext, signOut } = useAuth()
+  const { isDark, update } = useTheme()
 
   return (
     <header className="flex h-14 items-center gap-3 border-b bg-background px-4">
@@ -44,6 +47,16 @@ export function Header() {
       <div className="flex-1">
         <RestaurantSwitcher />
       </div>
+
+      <Button
+        variant="ghost"
+        size="icon"
+        aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+        title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+        onClick={() => update({ mode: isDark ? 'light' : 'dark' })}
+      >
+        {isDark ? <Sun className="size-5" /> : <Moon className="size-5" />}
+      </Button>
 
       <Button variant="ghost" size="icon" aria-label="Notifications">
         <Bell className="size-5" />
@@ -65,6 +78,11 @@ export function Header() {
         <DropdownMenuContent align="end" className="w-56">
           <DropdownMenuLabel className="truncate">{appContext?.email}</DropdownMenuLabel>
           <DropdownMenuSeparator />
+          <DropdownMenuItem asChild>
+            <Link to="/settings/appearance">
+              <Palette /> Appearance
+            </Link>
+          </DropdownMenuItem>
           <DropdownMenuItem variant="destructive" onSelect={() => signOut()}>
             <LogOut /> Sign out
           </DropdownMenuItem>

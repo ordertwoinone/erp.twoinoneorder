@@ -77,7 +77,7 @@ export function DesktopSidebar({
       )}
     >
       <div className="flex h-14 items-center gap-2 border-b border-sidebar-border px-4">
-        <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
+        <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
           <UtensilsCrossed className="size-4" />
         </div>
         {!collapsed && <span className="truncate text-sm font-semibold text-sidebar-foreground">TWOINONEORDER</span>}
