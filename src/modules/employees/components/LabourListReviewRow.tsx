@@ -75,7 +75,7 @@ export function LabourListReviewRow({
     return (
       <TableRow className="opacity-60">
         <TableCell colSpan={13} className="text-sm text-muted-foreground">
-          <Check className="mr-1.5 inline size-3.5 text-success-foreground" />
+          <Check className="mr-1.5 inline size-3.5 text-success" />
           {row.personName} — confirmed
         </TableCell>
       </TableRow>

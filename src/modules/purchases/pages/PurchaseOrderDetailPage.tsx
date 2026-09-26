@@ -67,7 +67,7 @@ export default function PurchaseOrderDetailPage() {
                     <TableCell>{item.units?.code}</TableCell>
                     <TableCell className="text-right tabular-nums">{item.quantity}</TableCell>
                     <TableCell
-                      className={`text-right tabular-nums ${item.quantity_received >= item.quantity ? 'text-success-foreground' : item.quantity_received > 0 ? 'text-warning-foreground' : 'text-muted-foreground'}`}
+                      className={`text-right tabular-nums ${item.quantity_received >= item.quantity ? 'text-success' : item.quantity_received > 0 ? 'text-warning-foreground' : 'text-muted-foreground'}`}
                     >
                       {item.quantity_received}
                     </TableCell>

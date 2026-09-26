@@ -131,7 +131,7 @@ export function PurchaseLineItemRow({
             <span
               className={cn(
                 'inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-xs font-semibold',
-                isAbove ? 'bg-warning/20 text-warning-foreground' : 'bg-success/15 text-success-foreground',
+                isAbove ? 'bg-warning/20 text-warning-foreground' : 'bg-success/15 text-success',
               )}
             >
               {isAbove ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />}
@@ -145,7 +145,7 @@ export function PurchaseLineItemRow({
           </div>
         ) : (
           <div>
-            <span className="inline-flex items-center gap-1 rounded-md bg-success/15 px-1.5 py-0.5 text-xs font-semibold text-success-foreground">
+            <span className="inline-flex items-center gap-1 rounded-md bg-success/15 px-1.5 py-0.5 text-xs font-semibold text-success">
               <CheckCircle2 className="size-3" /> Matched
             </span>
             <p className="mt-0.5 text-[11px] text-muted-foreground">0.00</p>

@@ -1790,6 +1790,10 @@ export interface Database {
           has_sufficient_data: boolean
         }[]
       }
+      delete_employee: {
+        Args: { p_employee_id: string }
+        Returns: undefined
+      }
       delete_restaurant: {
         Args: { p_restaurant_id: string }
         Returns: undefined

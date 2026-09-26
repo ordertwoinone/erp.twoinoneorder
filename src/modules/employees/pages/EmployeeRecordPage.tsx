@@ -1,15 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
+import { ConfirmActionDialog } from '@/components/shared/ConfirmActionDialog'
 import { FullScreenSpinner } from '@/components/shared/FullScreenSpinner'
 import { useRestaurantsQuery } from '@/hooks/useRestaurantsQuery'
 import { useRestaurantScope } from '@/hooks/useRestaurantScope'
 import { employeeRecordSchema, type EmployeeDocumentItem, type EmployeeRecordInput } from '@/schemas/employee'
-import { NATIONALITIES, DOCUMENT_TYPES, optionLabel } from '../employeeOptions'
+import { DOCUMENT_TYPES, normalizeNationality, optionLabel } from '../employeeOptions'
 import {
+  useDeleteEmployee,
   useEmployeeRecordQuery,
   useSaveEmployeeRecord,
   useScanEmployeeDocument,
@@ -119,6 +122,8 @@ export default function EmployeeRecordPage() {
   const { data: record, isLoading, error } = useEmployeeRecordQuery(routeId)
   const saveRecord = useSaveEmployeeRecord()
   const scanDocument = useScanEmployeeDocument()
+  const deleteEmployee = useDeleteEmployee()
+  const navigate = useNavigate()
 
   const form = useForm<EmployeeRecordInput>({
     resolver: zodResolver(employeeRecordSchema),
@@ -179,10 +184,7 @@ export default function EmployeeRecordPage() {
     }
     date('medical_expiry_date', fields.medical_expiry_date, 'medical expiry')
     set('work_permit_salary', fields.work_permit_salary, 'work permit salary')
-    if (fields.nationality) {
-      const match = NATIONALITIES.find((nat) => nat.toLowerCase() === fields.nationality!.toLowerCase())
-      if (match) set('nationality', match, 'nationality')
-    }
+    set('nationality', normalizeNationality(fields.nationality), 'nationality')
     return filled
   }
 
@@ -230,10 +232,29 @@ export default function EmployeeRecordPage() {
         },
       )}
     >
-      <Link to="/employees" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="size-4" /> Employees
-        {isNew && <span className="ml-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">New employee</span>}
-      </Link>
+      <div className="flex items-center justify-between gap-3">
+        <Link to="/employees" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="size-4" /> Employees
+          {isNew && <span className="ml-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">New employee</span>}
+        </Link>
+        {!isNew && (
+          <ConfirmActionDialog
+            trigger={
+              <Button type="button" variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+                <Trash2 /> Delete employee
+              </Button>
+            }
+            title={`Delete ${record?.employee.full_name ?? 'this employee'}?`}
+            description="This permanently removes the employee with their documents, vacations and replacement shortlist. Employees with payroll or other financial history can't be deleted — set them to Terminated or Resigned instead."
+            confirmLabel="Delete employee"
+            destructive
+            onConfirm={async () => {
+              await deleteEmployee.mutateAsync(employeeId)
+              navigate('/employees', { replace: true })
+            }}
+          />
+        )}
+      </div>
 
       <EmployeeHeaderSection form={form} restaurants={restaurants} docFilter={docFilter} onDocFilterChange={setDocFilter} />
       <VisaSponsorshipSection form={form} restaurants={restaurants} />

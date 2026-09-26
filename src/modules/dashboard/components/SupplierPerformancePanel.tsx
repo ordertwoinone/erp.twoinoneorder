@@ -70,7 +70,7 @@ export function SupplierPerformancePanel({
         header: 'Price decreases',
         cell: ({ row }) =>
           row.original.has_sufficient_data ? (
-            <span className="text-success-foreground">
+            <span className="text-success">
               {row.original.price_decrease_count} · {formatCurrency(row.original.price_decrease_value)}
             </span>
           ) : (

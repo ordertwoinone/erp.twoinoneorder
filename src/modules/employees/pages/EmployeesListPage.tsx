@@ -1,15 +1,17 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Plus, ScanLine, Search } from 'lucide-react'
+import { Plus, ScanLine, Search, Trash2 } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PageHeader } from '@/components/shared/PageHeader'
+import { ConfirmActionDialog } from '@/components/shared/ConfirmActionDialog'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { DataTable } from '@/components/tables/DataTable'
 import { useAuth } from '@/hooks/useAuth'
 import { formatCurrency } from '@/lib/utils/format'
 import { useEmployeesQuery, EMPLOYEES_PAGE_SIZE } from '../hooks/useEmployees'
+import { useDeleteEmployee } from '../hooks/useEmployeeRecord'
 
 interface EmployeeRow {
   id: string
@@ -28,6 +30,7 @@ export default function EmployeesListPage() {
   const [search, setSearch] = useState('')
   const [pageIndex, setPageIndex] = useState(0)
   const navigate = useNavigate()
+  const deleteEmployee = useDeleteEmployee()
 
   const { data, isLoading } = useEmployeesQuery({ search, pageIndex })
 
@@ -59,8 +62,32 @@ export default function EmployeesListPage() {
         header: 'Status',
         cell: ({ getValue }) => <StatusBadge status={getValue() as string} />,
       },
+      ...(canManage
+        ? [
+            {
+              id: 'actions',
+              header: '',
+              cell: ({ row }: { row: { original: EmployeeRow } }) => (
+                <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>
+                  <ConfirmActionDialog
+                    trigger={
+                      <Button variant="ghost" size="icon" aria-label={`Delete ${row.original.full_name}`}>
+                        <Trash2 className="size-4 text-destructive" />
+                      </Button>
+                    }
+                    title={`Delete ${row.original.full_name}?`}
+                    description="This permanently removes the employee with their documents, vacations and replacement shortlist. Employees with payroll or other financial history can't be deleted — set them to Terminated or Resigned instead."
+                    confirmLabel="Delete employee"
+                    destructive
+                    onConfirm={() => deleteEmployee.mutateAsync(row.original.id)}
+                  />
+                </div>
+              ),
+            } satisfies ColumnDef<EmployeeRow>,
+          ]
+        : []),
     ],
-    [],
+    [canManage, deleteEmployee],
   )
 
   return (

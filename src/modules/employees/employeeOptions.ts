@@ -107,6 +107,30 @@ export const NATIONALITIES: string[] = [
   'Zambian', 'Zimbabwean', 'Other',
 ]
 
+// Documents (MOHRE lists, passports) often print the country, not the
+// nationality, and in capitals — map the common ones onto NATIONALITIES.
+const COUNTRY_TO_NATIONALITY: Record<string, string> = {
+  india: 'Indian', pakistan: 'Pakistani', bangladesh: 'Bangladeshi', philippines: 'Filipino', egypt: 'Egyptian',
+  nepal: 'Nepali', 'sri lanka': 'Sri Lankan', 'united arab emirates': 'Emirati', uae: 'Emirati', afghanistan: 'Afghan',
+  algeria: 'Algerian', 'united states': 'American', usa: 'American', 'united kingdom': 'British', uk: 'British',
+  cameroon: 'Cameroonian', china: 'Chinese', ethiopia: 'Ethiopian', ghana: 'Ghanaian', indonesia: 'Indonesian',
+  iran: 'Iranian', iraq: 'Iraqi', jordan: 'Jordanian', kenya: 'Kenyan', lebanon: 'Lebanese', morocco: 'Moroccan',
+  myanmar: 'Burmese', nigeria: 'Nigerian', palestine: 'Palestinian', 'saudi arabia': 'Saudi', somalia: 'Somali',
+  sudan: 'Sudanese', syria: 'Syrian', tunisia: 'Tunisian', turkey: 'Turkish', uganda: 'Ugandan', uzbekistan: 'Uzbek',
+  vietnam: 'Vietnamese', yemen: 'Yemeni', filipino: 'Filipino', philippine: 'Filipino',
+}
+
+/** Best match in NATIONALITIES for a scanned/typed value; the input title-cased if there's no match. */
+export function normalizeNationality(value: string | null | undefined): string | null {
+  const raw = value?.trim()
+  if (!raw) return null
+  const key = raw.toLowerCase()
+  const direct = NATIONALITIES.find((n) => n.toLowerCase() === key)
+  if (direct) return direct
+  if (COUNTRY_TO_NATIONALITY[key]) return COUNTRY_TO_NATIONALITY[key]
+  return key.replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
 export function optionLabel(options: Option[], value: string | null | undefined): string {
   return options.find((o) => o.value === value)?.label ?? value ?? ''
 }

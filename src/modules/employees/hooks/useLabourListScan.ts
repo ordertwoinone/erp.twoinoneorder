@@ -83,6 +83,7 @@ export interface ConfirmLabourListItemInput {
   finalStatus: string | null
   baseSalary: number | null
   labourPersonNumber: string | null
+  nationality: string | null
   labourFineAmount: number | null
   vacations: { start_date: string; end_date: string | null; paid_by: string | null; amount: number | null; notes: string | null }[]
   settlementProofFile: File | null
@@ -108,6 +109,7 @@ export function useConfirmLabourListItem() {
           final_status: input.finalStatus,
           base_salary: input.baseSalary,
           labour_person_number: input.labourPersonNumber,
+          nationality: input.nationality,
           labour_fine_amount: input.labourFineAmount,
           vacations: input.vacations,
         } as never,

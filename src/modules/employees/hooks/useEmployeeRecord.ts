@@ -160,6 +160,24 @@ export function useSaveEmployeeRecord() {
   })
 }
 
+export function useDeleteEmployee() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.rpc('delete_employee', { p_employee_id: id })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employees'] })
+      toast.success('Employee deleted')
+    },
+    onError: (error: Error) => {
+      toast.error('Unable to delete employee', { description: error.message })
+    },
+  })
+}
+
 export interface ScannedEmployeeFields {
   document_type: string
   full_name: string | null

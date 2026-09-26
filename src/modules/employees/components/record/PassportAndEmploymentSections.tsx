@@ -48,7 +48,8 @@ export function PassportSection({
                     <SelectValue placeholder="Select nationality" />
                   </SelectTrigger>
                   <SelectContent className="max-h-72">
-                    {NATIONALITIES.map((n) => (
+                    {/* A saved value that isn't in the list must still show, not look blank. */}
+                    {(field.value && !NATIONALITIES.includes(field.value) ? [field.value, ...NATIONALITIES] : NATIONALITIES).map((n) => (
                       <SelectItem key={n} value={n}>
                         {n}
                       </SelectItem>

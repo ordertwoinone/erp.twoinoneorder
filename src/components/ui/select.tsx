@@ -6,9 +6,21 @@ import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react"
 import { Select as SelectPrimitive } from "radix-ui"
 
 function Select({
+  onValueChange,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Root>) {
-  return <SelectPrimitive.Root data-slot="select" {...props} />
+  // Inside a <form>, Radix mirrors the value into a hidden native <select>.
+  // If the value arrives before its option is registered (async option
+  // lists, or a stored value not in the list), the browser blanks that
+  // native select and Radix reports "" — silently wiping the real value.
+  // Users can never pick "" (SelectItem forbids it), so ignore it.
+  return (
+    <SelectPrimitive.Root
+      data-slot="select"
+      onValueChange={onValueChange && ((value) => value !== "" && onValueChange(value))}
+      {...props}
+    />
+  )
 }
 
 function SelectGroup({

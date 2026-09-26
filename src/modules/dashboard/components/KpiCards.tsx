@@ -19,7 +19,7 @@ function Delta({ pct, badWhenPositive }: { pct: number | null; badWhenPositive: 
   const isGood = badWhenPositive ? !isPositive : isPositive
   const Icon = isPositive ? ArrowUpRight : ArrowDownRight
   return (
-    <span className={cn('inline-flex items-center gap-0.5 text-xs font-medium', isGood ? 'text-success-foreground' : 'text-destructive')}>
+    <span className={cn('inline-flex items-center gap-0.5 text-xs font-medium', isGood ? 'text-success' : 'text-destructive')}>
       <Icon className="size-3.5" />
       {Math.abs(pct).toFixed(0)}% vs last period
     </span>

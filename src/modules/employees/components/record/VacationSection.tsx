@@ -12,7 +12,7 @@ import { openEmployeeFile, validateDocumentFile } from '../../hooks/useEmployeeR
 import { Field, IconInput, OptionSelect, SectionCard, SegmentedToggle } from './RecordUi'
 
 const CLAIM_STYLES: Record<string, string> = {
-  claimed: 'border-success/30 bg-success/10 text-success-foreground',
+  claimed: 'border-success/30 bg-success/10 text-success',
   not_claimed: 'border-warning/40 bg-warning/15 text-warning-foreground',
   pending: 'border-primary/30 bg-primary/10 text-primary',
 }
@@ -45,7 +45,7 @@ export function VacationSection({ form }: { form: UseFormReturn<EmployeeRecordIn
           <span
             className={cn(
               'inline-flex h-10 w-fit items-center gap-2 rounded-lg border px-4 text-sm font-medium',
-              claimed ? 'bg-muted/50 text-muted-foreground' : 'border-success/30 bg-success/10 text-success-foreground',
+              claimed ? 'bg-muted/50 text-muted-foreground' : 'border-success/30 bg-success/10 text-success',
             )}
           >
             <span className={cn('size-2.5 rounded-full', claimed ? 'bg-muted-foreground' : 'bg-success')} />

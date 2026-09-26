@@ -112,7 +112,7 @@ export const SupplierQuoteComparison = forwardRef<HTMLElement, { form: UseFormRe
                           <ArrowUp className="size-3" />+{pct!.toFixed(0)}%
                         </span>
                       ) : pct !== null && pct < -0.5 ? (
-                        <span className="text-xs font-semibold text-success-foreground">−{Math.abs(pct).toFixed(0)}%</span>
+                        <span className="text-xs font-semibold text-success">−{Math.abs(pct).toFixed(0)}%</span>
                       ) : (
                         <span className="text-muted-foreground">–</span>
                       )}

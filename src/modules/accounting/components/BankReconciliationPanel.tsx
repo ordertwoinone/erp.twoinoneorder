@@ -194,7 +194,7 @@ function NewReconciliationDialog({
             {difference !== null && (
               <div className="mt-1 flex justify-between">
                 <span className="text-muted-foreground">Difference</span>
-                <span className={`tabular-nums ${Math.abs(difference) > 0.01 ? 'font-medium text-destructive' : 'text-success-foreground'}`}>
+                <span className={`tabular-nums ${Math.abs(difference) > 0.01 ? 'font-medium text-destructive' : 'text-success'}`}>
                   {formatCurrency(difference)}
                 </span>
               </div>

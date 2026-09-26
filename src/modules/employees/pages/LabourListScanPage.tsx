@@ -9,6 +9,7 @@ import { PageHeader } from '@/components/shared/PageHeader'
 import { useRestaurantsQuery } from '@/hooks/useRestaurantsQuery'
 import { useRestaurantScope } from '@/hooks/useRestaurantScope'
 import { LabourListReviewRow, type LabourListRowState } from '../components/LabourListReviewRow'
+import { normalizeNationality } from '../employeeOptions'
 import {
   useConfirmLabourListItem,
   useIgnoreLabourListItem,
@@ -94,6 +95,7 @@ export default function LabourListScanPage() {
         finalStatus: row.finalStatus || null,
         baseSalary: row.baseSalary ? Number(row.baseSalary) : null,
         labourPersonNumber: row.personNumber,
+        nationality: normalizeNationality(row.nationality),
         labourFineAmount: row.labourFine ? Number(row.labourFine) : null,
         vacations: row.vacations
           .filter((v) => v.start_date)
