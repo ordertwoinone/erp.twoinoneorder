@@ -23,7 +23,7 @@ export function SidebarNav({
     .sort((a, b) => b.to.length - a.to.length)[0]?.to
 
   return (
-    <nav className="flex-1 space-y-4 overflow-y-auto px-2 py-4">
+    <nav className="no-scrollbar flex-1 space-y-4 overflow-y-auto px-2 py-4">
       {navSections.map((section) => {
         const items = section.items.filter((item) => !item.permission || hasPermission(item.permission))
         if (items.length === 0) return null

@@ -205,6 +205,14 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+/* Still scrollable by wheel / touch / keyboard, just no visible bar. */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
