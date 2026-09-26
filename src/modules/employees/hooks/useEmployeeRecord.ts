@@ -14,7 +14,7 @@ export function useEmployeeRecordQuery(id: string | undefined) {
     queryKey: ['employees', 'record', id],
     enabled: !!id,
     queryFn: async () => {
-      const [employeeRes, documentsRes, vacationsRes, replacementsRes] = await Promise.all([
+      const [employeeRes, documentsRes, vacationsRes, replacementsRes, visaStepsRes] = await Promise.all([
         supabase.from('employees').select('*').eq('id', id!).single(),
         supabase
           .from('employee_documents')
@@ -31,16 +31,19 @@ export function useEmployeeRecordQuery(id: string | undefined) {
           .select('*, employees!employee_replacements_replacement_employee_id_fkey(full_name, job_title, restaurants(name))')
           .eq('employee_id', id!)
           .order('created_at'),
+        supabase.from('employee_visa_steps').select('*, attachments(file_name, storage_path)').eq('employee_id', id!),
       ])
       if (employeeRes.error) throw employeeRes.error
       if (documentsRes.error) throw documentsRes.error
       if (vacationsRes.error) throw vacationsRes.error
       if (replacementsRes.error) throw replacementsRes.error
+      if (visaStepsRes.error) throw visaStepsRes.error
       return {
         employee: employeeRes.data,
         documents: documentsRes.data,
         vacations: vacationsRes.data,
         replacements: replacementsRes.data,
+        visaSteps: visaStepsRes.data,
       }
     },
   })
@@ -123,9 +126,22 @@ export function useSaveEmployeeRecord() {
         })
       }
 
-      const { vacations: _v, replacements, ...fields } = values
+      // Only steps with something entered are stored; the rest stay "not started".
+      const visaSteps = []
+      for (const step of values.visa_steps) {
+        let attachmentId = step.attachment_id ?? null
+        if (step.pending_file instanceof File) {
+          attachmentId = (await uploadEmployeeFile(step.pending_file, restaurantId, values.id)).attachmentId
+        }
+        const { attachment_name: _n, attachment_path: _p, pending_file: _f, ...rest } = step
+        const hasData = rest.status !== 'not_started' || attachmentId || Object.entries(rest).some(([k, v]) => k !== 'step_key' && k !== 'status' && v !== '' && v !== undefined && v !== null)
+        if (hasData) visaSteps.push({ ...rest, attachment_id: attachmentId })
+      }
+
+      const { vacations: _v, replacements, visa_steps: _s, ...fields } = values
       const payload = {
         ...fields,
+        visa_steps: visaSteps,
         work_permit_salary: fields.work_permit_salary === '' ? null : fields.work_permit_salary,
         base_salary: fields.base_salary === '' ? null : fields.base_salary,
         renewal_salary: fields.renewal_salary === '' ? null : fields.renewal_salary,

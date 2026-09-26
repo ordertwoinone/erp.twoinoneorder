@@ -19,6 +19,7 @@ const EXPIRY_ALERTS: { field: keyof EmployeeRecordInput; label: string; fineNote
   { field: 'emirates_id_expiry', label: 'Emirates ID' },
   { field: 'passport_expiry_date', label: 'Passport' },
   { field: 'medical_expiry_date', label: 'Medical' },
+  { field: 'health_insurance_expiry', label: 'Health insurance' },
 ]
 
 function expiryMessage(label: string, value: string, today: Date) {

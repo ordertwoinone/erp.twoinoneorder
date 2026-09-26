@@ -1,15 +1,16 @@
 import { useRef } from 'react'
 import type { UseFormReturn } from 'react-hook-form'
 import { Controller } from 'react-hook-form'
-import { BookUser, BriefcaseBusiness, CalendarDays, CircleDollarSign, Globe, Hash, Paperclip, TrendingDown, TrendingUp } from 'lucide-react'
+import { BookUser, BriefcaseBusiness, CalendarDays, CircleDollarSign, Globe, Hash, MapPin, Paperclip, TrendingDown, TrendingUp } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/utils/format'
 import type { EmployeeDocumentItem, EmployeeRecordInput } from '@/schemas/employee'
-import { NATIONALITIES } from '../../employeeOptions'
+import { NATIONALITIES, PASSPORT_STATUSES } from '../../employeeOptions'
 import { openEmployeeFile } from '../../hooks/useEmployeeRecord'
-import { Field, IconInput, SectionCard } from './RecordUi'
+import { Field, IconInput, OptionSelect, SectionCard } from './RecordUi'
+import { ExpiryBadge } from './EntryAndInsuranceSections'
 
 export function PassportSection({
   form,
@@ -20,21 +21,33 @@ export function PassportSection({
   passportDocs: EmployeeDocumentItem[]
   onAttachPassport: (files: File[]) => void
 }) {
-  const { register, control } = form
+  const { register, control, watch } = form
   const inputRef = useRef<HTMLInputElement>(null)
   const latest = passportDocs[passportDocs.length - 1]
 
   return (
     <SectionCard icon={BookUser} title="Passport details">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Field label="Passport number">
           <IconInput icon={Hash} placeholder="e.g. N12345678" {...register('passport_number')} />
         </Field>
         <Field label="Passport issue date">
           <IconInput icon={CalendarDays} type="date" {...register('passport_issue_date')} />
         </Field>
-        <Field label="Passport expiry date">
+        <Field label={<span className="flex items-center gap-2">Passport expiry date <ExpiryBadge date={watch('passport_expiry_date')} /></span>}>
           <IconInput icon={CalendarDays} type="date" {...register('passport_expiry_date')} />
+        </Field>
+        <Field label="Passport status">
+          <Controller
+            control={control}
+            name="passport_status"
+            render={({ field }) => (
+              <OptionSelect value={field.value} onChange={field.onChange} options={PASSPORT_STATUSES} placeholder="Who holds it?" />
+            )}
+          />
+        </Field>
+        <Field label="Current location">
+          <IconInput icon={MapPin} placeholder="e.g. Head office safe, with PRO" {...register('passport_location')} />
         </Field>
         <Field label="Nationality">
           <Controller

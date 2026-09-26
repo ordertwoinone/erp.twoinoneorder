@@ -2,7 +2,8 @@ import { z } from 'zod'
 
 const optionalText = z.string().trim().optional().or(z.literal(''))
 const optionalDate = z.string().optional().or(z.literal(''))
-const optionalAmount = z.coerce.number().min(0, 'Cannot be negative').optional().or(z.literal(''))
+// '' first: z.coerce.number would turn a blank field into 0.
+const optionalAmount = z.union([z.literal(''), z.coerce.number().min(0, 'Cannot be negative')]).optional()
 
 export const vacationRowSchema = z.object({
   // Not `id`: useFieldArray reserves that key for its own row keys.
@@ -30,6 +31,26 @@ export const replacementRowSchema = z.object({
   notes: optionalText,
 })
 export type ReplacementRow = z.infer<typeof replacementRowSchema>
+
+export const visaStepRowSchema = z.object({
+  step_key: z.string(),
+  status: z.string(),
+  application_date: optionalDate,
+  approval_date: optionalDate,
+  expiry_date: optionalDate,
+  government_fee: optionalAmount,
+  other_charges: optionalAmount,
+  amount_paid: optionalAmount,
+  fine_amount: optionalAmount,
+  fine_status: optionalText,
+  payment_date: optionalDate,
+  notes: optionalText,
+  attachment_id: z.string().optional().nullable(),
+  attachment_name: z.string().optional().nullable(),
+  attachment_path: z.string().optional().nullable(),
+  pending_file: z.any().optional(),
+})
+export type VisaStepRow = z.infer<typeof visaStepRowSchema>
 
 export const employeeRecordSchema = z.object({
   id: z.string().uuid(),
@@ -79,6 +100,28 @@ export const employeeRecordSchema = z.object({
   settlement_document_type: optionalText,
   settlement_reference: optionalText,
   renewal_notes: optionalText,
+
+  initial_visa_type: optionalText,
+  entry_date: optionalDate,
+  allowed_stay_days: z.union([z.literal(''), z.coerce.number().int('Whole days only').min(0, 'Cannot be negative')]).optional(),
+  passport_status: optionalText,
+  passport_location: optionalText,
+  health_insurance_expiry: optionalDate,
+  insurance_applicable: z.boolean(),
+  insurance_start_date: optionalDate,
+  insurance_expiry_date: optionalDate,
+  insurance_fine_applicable: z.boolean(),
+  insurance_fine_amount: optionalAmount,
+  insurance_status: optionalText,
+  visit_visa_source: optionalText,
+  visit_visa_support: optionalText,
+  visit_visa_cost: optionalAmount,
+  visit_visa_loan_amount: optionalAmount,
+  visit_visa_disbursed_date: optionalDate,
+  visit_visa_repayment_start: optionalDate,
+  visit_visa_monthly_deduction: optionalAmount,
+  visit_visa_recovered_amount: optionalAmount,
+  visa_steps: z.array(visaStepRowSchema),
 })
 
 export type EmployeeRecordInput = z.infer<typeof employeeRecordSchema>

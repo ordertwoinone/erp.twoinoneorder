@@ -49,7 +49,74 @@ export const DOCUMENT_TYPES: Option[] = [
   { value: 'passport', label: 'Passport' },
   { value: 'settlement', label: 'Settlement' },
   { value: 'visa', label: 'Visa' },
+  { value: 'insurance', label: 'Insurance' },
   { value: 'other', label: 'Other' },
+]
+
+export const INITIAL_VISA_TYPES: Option[] = [
+  { value: 'visit_visa', label: 'Visit visa' },
+  { value: 'employment_visa', label: 'Employment visa' },
+  { value: 'other_sponsor', label: 'Other sponsor' },
+]
+
+export const PASSPORT_STATUSES: Option[] = [
+  { value: 'with_employee', label: 'With employee' },
+  { value: 'with_company', label: 'With company (PRO / HR)' },
+  { value: 'submitted_for_processing', label: 'Submitted for processing' },
+  { value: 'lost', label: 'Lost / reported' },
+  { value: 'other', label: 'Other' },
+]
+
+export const INSURANCE_STATUSES: Option[] = [
+  { value: 'pending_verification', label: 'Pending verification' },
+  { value: 'active', label: 'Active' },
+  { value: 'expired', label: 'Expired' },
+  { value: 'cancelled', label: 'Cancelled' },
+  { value: 'not_applicable', label: 'Not applicable' },
+]
+
+export const VISIT_VISA_SOURCES: Option[] = [
+  { value: 'company_arranged', label: 'Company arranged' },
+  { value: 'self_arranged', label: 'Self arranged' },
+  { value: 'agency', label: 'Agency' },
+]
+
+export const VISIT_VISA_SUPPORT: Option[] = [
+  { value: 'recoverable_loan', label: 'Recoverable loan' },
+  { value: 'company_paid', label: 'Company paid (not recovered)' },
+  { value: 'employee_paid', label: 'Employee paid' },
+]
+
+// UAE employment-visa journey, in order.
+export const VISA_STEPS: { key: string; label: string; hint: string }[] = [
+  { key: 'visit_visa', label: 'Visit visa', hint: 'Initial entry on visit' },
+  { key: 'job_offer', label: 'MOHRE job offer', hint: 'Offer letter signed' },
+  { key: 'work_permit', label: 'Work permit', hint: 'MOHRE work permit' },
+  { key: 'entry_permit', label: 'Entry permit / change status', hint: 'ICP / GDRFA' },
+  { key: 'status_adjustment', label: 'Inside-country status adjustment', hint: 'Change of status inside UAE' },
+  { key: 'health_insurance', label: 'Health insurance', hint: 'Policy issued' },
+  { key: 'medical_test', label: 'Medical fitness test', hint: 'DHA / MOHAP centre' },
+  { key: 'emirates_id_biometrics', label: 'Emirates ID application & biometrics', hint: 'Typing + biometrics' },
+  { key: 'residence_permit', label: 'Residence permit', hint: 'UAE residence visa' },
+  { key: 'emirates_id_card', label: 'Emirates ID card', hint: 'Card collected' },
+]
+
+export const VISA_STEP_STATUSES: Option[] = [
+  { value: 'not_started', label: 'Not started' },
+  { value: 'in_progress', label: 'In progress' },
+  { value: 'pending_payment', label: 'Pending payment' },
+  { value: 'approved', label: 'Approved' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'rejected', label: 'Rejected' },
+  { value: 'expired', label: 'Expired' },
+  { value: 'not_applicable', label: 'Not applicable' },
+]
+
+export const FINE_STATUSES: Option[] = [
+  { value: 'none', label: 'No fine' },
+  { value: 'pending_verification', label: 'Pending verification' },
+  { value: 'paid', label: 'Paid' },
+  { value: 'waived', label: 'Waived' },
 ]
 
 export const TICKET_PAID_BY: Option[] = [

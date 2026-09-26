@@ -51,7 +51,7 @@ export default function RestaurantsAdminPage() {
                 </Button>
               }
               title={`Delete ${row.original.name}?`}
-              description="This permanently removes the restaurant. It only works if the restaurant has no purchases, sales, employees or other records — otherwise mark it inactive instead to keep its history."
+              description="This permanently removes the restaurant and its labour-list / AI scans. Staff assigned here stay in the employee list without a branch. Restaurants with purchases, sales, payroll or other financial records can't be deleted — mark them inactive instead."
               confirmLabel="Delete restaurant"
               destructive
               onConfirm={() => deleteRestaurant.mutateAsync(row.original.id)}

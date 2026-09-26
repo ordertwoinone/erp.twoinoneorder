@@ -10,7 +10,7 @@ import { FullScreenSpinner } from '@/components/shared/FullScreenSpinner'
 import { useRestaurantsQuery } from '@/hooks/useRestaurantsQuery'
 import { useRestaurantScope } from '@/hooks/useRestaurantScope'
 import { employeeRecordSchema, type EmployeeDocumentItem, type EmployeeRecordInput } from '@/schemas/employee'
-import { DOCUMENT_TYPES, normalizeNationality, optionLabel } from '../employeeOptions'
+import { DOCUMENT_TYPES, VISA_STEPS, normalizeNationality, optionLabel } from '../employeeOptions'
 import {
   useDeleteEmployee,
   useEmployeeRecordQuery,
@@ -27,6 +27,8 @@ import { EmploymentSalarySection, PassportSection } from '../components/record/P
 import { VacationSection } from '../components/record/VacationSection'
 import { ReplacementsSection } from '../components/record/ReplacementsSection'
 import { RenewalSettlementSection } from '../components/record/RenewalSettlementSection'
+import { EntrySection, InsuranceSection } from '../components/record/EntryAndInsuranceSections'
+import { VisaJourneySection, VisitVisaFundingSection } from '../components/record/VisaJourneySection'
 
 const s = (v: string | null | undefined) => v ?? ''
 const n = (v: number | null | undefined): number | '' => (v === null || v === undefined ? '' : v)
@@ -94,6 +96,46 @@ function toFormValues(id: string, restaurantId: string, record?: EmployeeRecordD
     settlement_document_type: s(e?.settlement_document_type),
     settlement_reference: s(e?.settlement_reference),
     renewal_notes: s(e?.renewal_notes),
+    initial_visa_type: s(e?.initial_visa_type),
+    entry_date: s(e?.entry_date),
+    allowed_stay_days: n(e?.allowed_stay_days),
+    passport_status: s(e?.passport_status),
+    passport_location: s(e?.passport_location),
+    health_insurance_expiry: s(e?.health_insurance_expiry),
+    insurance_applicable: e?.insurance_applicable ?? false,
+    insurance_start_date: s(e?.insurance_start_date),
+    insurance_expiry_date: s(e?.insurance_expiry_date),
+    insurance_fine_applicable: e?.insurance_fine_applicable ?? false,
+    insurance_fine_amount: n(e?.insurance_fine_amount),
+    insurance_status: s(e?.insurance_status),
+    visit_visa_source: s(e?.visit_visa_source),
+    visit_visa_support: s(e?.visit_visa_support),
+    visit_visa_cost: n(e?.visit_visa_cost),
+    visit_visa_loan_amount: n(e?.visit_visa_loan_amount),
+    visit_visa_disbursed_date: s(e?.visit_visa_disbursed_date),
+    visit_visa_repayment_start: s(e?.visit_visa_repayment_start),
+    visit_visa_monthly_deduction: n(e?.visit_visa_monthly_deduction),
+    visit_visa_recovered_amount: n(e?.visit_visa_recovered_amount),
+    visa_steps: VISA_STEPS.map(({ key }) => {
+      const saved = record?.visaSteps.find((v) => v.step_key === key)
+      return {
+        step_key: key,
+        status: saved?.status ?? 'not_started',
+        application_date: s(saved?.application_date),
+        approval_date: s(saved?.approval_date),
+        expiry_date: s(saved?.expiry_date),
+        government_fee: n(saved?.government_fee),
+        other_charges: n(saved?.other_charges),
+        amount_paid: n(saved?.amount_paid),
+        fine_amount: n(saved?.fine_amount),
+        fine_status: s(saved?.fine_status),
+        payment_date: s(saved?.payment_date),
+        notes: s(saved?.notes),
+        attachment_id: saved?.attachment_id ?? null,
+        attachment_name: saved?.attachments?.file_name ?? null,
+        attachment_path: saved?.attachments?.storage_path ?? null,
+      }
+    }),
   }
 }
 
@@ -142,6 +184,7 @@ export default function EmployeeRecordPage() {
 
   const passportDocs = useMemo(() => documents.filter((d) => d.document_type === 'passport'), [documents])
   const settlementDocs = useMemo(() => documents.filter((d) => d.document_type === 'settlement'), [documents])
+  const insuranceDocs = useMemo(() => documents.filter((d) => d.document_type === 'insurance'), [documents])
 
   function attachFiles(files: File[], documentType: string) {
     const accepted: EmployeeDocumentItem[] = []
@@ -257,6 +300,7 @@ export default function EmployeeRecordPage() {
       </div>
 
       <EmployeeHeaderSection form={form} restaurants={restaurants} docFilter={docFilter} onDocFilterChange={setDocFilter} />
+      <EntrySection form={form} />
       <VisaSponsorshipSection form={form} restaurants={restaurants} />
       <EmployeeDocumentsSection
         form={form}
@@ -269,8 +313,16 @@ export default function EmployeeRecordPage() {
         scanning={scanDocument.isPending}
       />
       <PassportSection form={form} passportDocs={passportDocs} onAttachPassport={(files) => attachFiles(files, 'passport')} />
+      <InsuranceSection
+        form={form}
+        insuranceDocs={insuranceDocs}
+        onAttach={(files) => attachFiles(files, 'insurance')}
+        onRemoveDoc={(key) => setDocuments((prev) => prev.filter((d) => d.key !== key))}
+      />
       <EmploymentSalarySection form={form} />
       <VacationSection form={form} />
+      <VisaJourneySection form={form} />
+      <VisitVisaFundingSection form={form} />
       <ReplacementsSection form={form} />
       <RenewalSettlementSection
         form={form}

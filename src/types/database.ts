@@ -850,6 +850,26 @@ export interface Database {
           settlement_document_type: string | null
           settlement_reference: string | null
           renewal_notes: string | null
+          initial_visa_type: string | null
+          entry_date: string | null
+          allowed_stay_days: number | null
+          passport_status: string | null
+          passport_location: string | null
+          health_insurance_expiry: string | null
+          insurance_applicable: boolean
+          insurance_start_date: string | null
+          insurance_expiry_date: string | null
+          insurance_fine_applicable: boolean
+          insurance_fine_amount: number | null
+          insurance_status: string | null
+          visit_visa_source: string | null
+          visit_visa_support: string | null
+          visit_visa_cost: number | null
+          visit_visa_loan_amount: number | null
+          visit_visa_disbursed_date: string | null
+          visit_visa_repayment_start: string | null
+          visit_visa_monthly_deduction: number | null
+          visit_visa_recovered_amount: number | null
           is_shared_employee: boolean
           created_at: string
           updated_at: string
@@ -907,6 +927,38 @@ export interface Database {
         Relationships: [
           {
             foreignKeyName: 'employee_documents_attachment_id_fkey'
+            columns: ['attachment_id']
+            isOneToOne: false
+            referencedRelation: 'attachments'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      employee_visa_steps: {
+        Row: {
+          id: string
+          employee_id: string
+          step_key: string
+          status: string
+          application_date: string | null
+          approval_date: string | null
+          expiry_date: string | null
+          government_fee: number | null
+          other_charges: number | null
+          amount_paid: number | null
+          fine_amount: number | null
+          fine_status: string | null
+          payment_date: string | null
+          notes: string | null
+          attachment_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['employee_visa_steps']['Row']> & { employee_id: string; step_key: string }
+        Update: Partial<Database['public']['Tables']['employee_visa_steps']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'employee_visa_steps_attachment_id_fkey'
             columns: ['attachment_id']
             isOneToOne: false
             referencedRelation: 'attachments'
