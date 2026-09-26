@@ -7,7 +7,10 @@ export function AppShell() {
   const [collapsed, setCollapsed] = useState(false)
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    // `relative` so absolutely-positioned descendants (e.g. the hidden native
+    // <select> Radix adds inside a <form>) are clipped here instead of
+    // stretching the document and scrolling the whole window.
+    <div className="relative flex h-screen overflow-hidden bg-background">
       <DesktopSidebar collapsed={collapsed} onToggleCollapsed={() => setCollapsed((c) => !c)} />
       <div className="flex min-w-0 flex-1 flex-col">
         <Header />
