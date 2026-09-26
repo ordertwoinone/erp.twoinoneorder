@@ -8,7 +8,7 @@ export function useProductsOptions() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('products')
-        .select('id, sku, name, base_unit_id')
+        .select('id, sku, name, base_unit_id, pack_size, brands(name), categories(name)')
         .eq('is_active', true)
         .order('name')
       if (error) throw error

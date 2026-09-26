@@ -190,6 +190,13 @@ export interface Database {
         Update: Partial<Database['public']['Tables']['supplier_price_locks']['Row']>
         Relationships: [
           {
+            foreignKeyName: 'supplier_price_locks_supplier_id_fkey'
+            columns: ['supplier_id']
+            isOneToOne: false
+            referencedRelation: 'suppliers'
+            referencedColumns: ['id']
+          },
+          {
             foreignKeyName: 'supplier_price_locks_product_id_fkey'
             columns: ['product_id']
             isOneToOne: false
@@ -288,6 +295,7 @@ export interface Database {
           purchase_order_id: string | null
           invoice_number: string
           invoice_date: string
+          payment_terms_days: number | null
           status: 'draft' | 'pending_approval' | 'returned' | 'rejected' | 'approved' | 'posted' | 'cancelled'
           payment_status: 'unpaid' | 'partially_paid' | 'paid' | 'overpaid'
           source: 'manual' | 'ai_scan'
@@ -1685,13 +1693,14 @@ export interface Database {
         Returns: string
       }
       search_items_for_purchase: {
-        Args: { p_supplier_id: string; p_restaurant_id: string; p_search: string | null; p_limit?: number }
+        Args: { p_supplier_id: string; p_restaurant_id: string; p_search: string | null; p_limit?: number; p_category_id?: string | null }
         Returns: {
           product_id: string
           name: string
           sku: string | null
           barcode: string | null
           brand_name: string | null
+          category_id: string | null
           category_name: string | null
           base_unit_id: string
           base_unit_code: string
@@ -1780,6 +1789,10 @@ export interface Database {
           price_decrease_value: number
           has_sufficient_data: boolean
         }[]
+      }
+      delete_restaurant: {
+        Args: { p_restaurant_id: string }
+        Returns: undefined
       }
       save_employee_record: {
         Args: { payload: Json }

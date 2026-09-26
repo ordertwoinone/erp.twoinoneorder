@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 import { ChevronsLeft, ChevronsRight, UtensilsCrossed } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -13,6 +13,14 @@ export function SidebarNav({
   onNavigate?: () => void
 }) {
   const { hasPermission } = useAuth()
+  const { pathname } = useLocation()
+
+  // Highlight only the most specific matching item, so /purchases/new lights
+  // up "New Purchase" and not "Invoices" (/purchases) as well.
+  const activeTo = navSections
+    .flatMap((s) => s.items)
+    .filter((item) => (item.to === '/' ? pathname === '/' : pathname === item.to || pathname.startsWith(item.to + '/')))
+    .sort((a, b) => b.to.length - a.to.length)[0]?.to
 
   return (
     <nav className="flex-1 space-y-4 overflow-y-auto px-2 py-4">
@@ -31,13 +39,12 @@ export function SidebarNav({
                 <NavLink
                   key={item.to}
                   to={item.to}
-                  end={item.to === '/'}
                   onClick={onNavigate}
-                  className={({ isActive }) =>
+                  className={() =>
                     cn(
                       'flex items-center gap-3 rounded-md px-2.5 py-2 text-sm font-medium transition-colors',
                       'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
-                      isActive && 'bg-sidebar-accent text-sidebar-accent-foreground',
+                      item.to === activeTo && 'bg-sidebar-accent text-sidebar-accent-foreground',
                       collapsed && 'justify-center px-0',
                     )
                   }

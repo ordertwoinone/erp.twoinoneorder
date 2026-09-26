@@ -30,6 +30,24 @@ export function useAllRestaurantsQuery() {
   })
 }
 
+export function useDeleteRestaurant() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.rpc('delete_restaurant', { p_restaurant_id: id })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['restaurants'] })
+      toast.success('Restaurant deleted')
+    },
+    onError: (error: Error) => {
+      toast.error('Unable to delete restaurant', { description: error.message })
+    },
+  })
+}
+
 export function useSaveRestaurant() {
   const queryClient = useQueryClient()
 

@@ -6,10 +6,8 @@ export interface Option {
 export const VISA_SPONSORSHIP_TYPES: Option[] = [
   { value: 'company', label: 'Company sponsored' },
   { value: 'family', label: 'Family sponsored' },
-  { value: 'investor', label: 'Investor / partner visa' },
-  { value: 'golden', label: 'Golden visa' },
+  { value: 'work_permit', label: 'Work permit' },
   { value: 'freelance', label: 'Freelance permit' },
-  { value: 'mission', label: 'Mission visa' },
   { value: 'other', label: 'Other' },
 ]
 

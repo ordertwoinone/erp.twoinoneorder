@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
-import { Plus } from 'lucide-react'
+import { Plus, Trash2 } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/shared/PageHeader'
+import { ConfirmActionDialog } from '@/components/shared/ConfirmActionDialog'
 import { DataTable } from '@/components/tables/DataTable'
-import { useAllRestaurantsQuery } from '../hooks/useRestaurantAdmin'
+import { useAllRestaurantsQuery, useDeleteRestaurant } from '../hooks/useRestaurantAdmin'
 import { RestaurantFormDialog } from '../components/RestaurantFormDialog'
 
 interface RestaurantRow {
@@ -21,6 +22,7 @@ export default function RestaurantsAdminPage() {
   const { data: restaurants, isLoading } = useAllRestaurantsQuery()
   const [editingId, setEditingId] = useState<string | undefined>(undefined)
   const [createOpen, setCreateOpen] = useState(false)
+  const deleteRestaurant = useDeleteRestaurant()
 
   const columns = useMemo<ColumnDef<RestaurantRow>[]>(
     () => [
@@ -37,8 +39,28 @@ export default function RestaurantsAdminPage() {
         header: 'Status',
         cell: ({ getValue }) => <Badge variant={getValue() ? 'secondary' : 'outline'}>{getValue() ? 'Active' : 'Inactive'}</Badge>,
       },
+      {
+        id: 'actions',
+        header: '',
+        cell: ({ row }) => (
+          <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>
+            <ConfirmActionDialog
+              trigger={
+                <Button variant="ghost" size="icon" aria-label={`Delete ${row.original.name}`}>
+                  <Trash2 className="size-4 text-destructive" />
+                </Button>
+              }
+              title={`Delete ${row.original.name}?`}
+              description="This permanently removes the restaurant. It only works if the restaurant has no purchases, sales, employees or other records — otherwise mark it inactive instead to keep its history."
+              confirmLabel="Delete restaurant"
+              destructive
+              onConfirm={() => deleteRestaurant.mutateAsync(row.original.id)}
+            />
+          </div>
+        ),
+      },
     ],
-    [],
+    [deleteRestaurant],
   )
 
   return (

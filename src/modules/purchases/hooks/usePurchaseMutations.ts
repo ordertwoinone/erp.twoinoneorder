@@ -2,24 +2,28 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase/client'
-import type { PurchaseFormInput } from '@/schemas/purchase'
+import { computeLines, type PurchaseFormInput } from '@/schemas/purchase'
 
 function buildPayload(input: PurchaseFormInput) {
+  const lines = computeLines(input.items, input.invoice_discount)
   return {
     id: input.id ?? null,
     restaurant_id: input.restaurant_id,
     supplier_id: input.supplier_id,
     invoice_number: input.invoice_number,
     invoice_date: input.invoice_date,
+    payment_terms_days: input.payment_terms_days === '' ? null : input.payment_terms_days,
     notes: input.notes ?? null,
-    items: input.items.map((item) => ({
+    // The server recomputes VAT from vat_rate; discount_amount is this line's
+    // share of the invoice discount.
+    items: input.items.map((item, index) => ({
       product_id: item.product_id,
       unit_id: item.unit_id,
       pack_size: item.pack_size === '' ? null : item.pack_size,
       quantity: item.quantity,
       unit_price: item.unit_price,
-      discount_amount: item.discount_amount,
-      tax_amount: item.tax_amount,
+      discount_amount: lines[index].discount,
+      vat_rate: item.vat_rate,
     })),
   }
 }

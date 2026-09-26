@@ -175,6 +175,9 @@ export default function PurchaseDetailPage() {
             <CardContent className="space-y-2 text-sm">
               <Row label="Invoice #" value={purchase.invoice_number} />
               <Row label="Invoice date" value={formatDate(purchase.invoice_date)} />
+              {purchase.payment_terms_days != null && (
+                <Row label="Payment terms" value={purchase.payment_terms_days === 0 ? 'On receipt' : `${purchase.payment_terms_days} days`} />
+              )}
               <Row label="Source" value={purchase.source === 'ai_scan' ? 'AI Scan' : 'Manual'} />
               <Row label="Payment status" value={<StatusBadge status={purchase.payment_status} />} />
               {purchase.notes && <Row label="Notes" value={purchase.notes} />}

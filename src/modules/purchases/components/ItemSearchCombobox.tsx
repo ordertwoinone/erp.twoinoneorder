@@ -1,35 +1,34 @@
-import { forwardRef, useEffect, useMemo, useState } from 'react'
-import { Loader2, Package, Plus } from 'lucide-react'
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
-import { Badge } from '@/components/ui/badge'
-import { cn } from '@/lib/utils'
-import { formatCurrency, formatDate } from '@/lib/utils/format'
+import { forwardRef, useEffect, useState } from 'react'
+import { ChevronRight, Loader2, Plus, Search } from 'lucide-react'
+import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from '@/components/ui/command'
+import { Command as CommandPrimitive } from 'cmdk'
+import { formatCurrency } from '@/lib/utils/format'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { useItemSearchQuery, type ItemSearchResult } from '../hooks/useItemSearch'
+import { ItemThumb } from './ItemThumb'
 
 interface ItemSearchComboboxProps {
   supplierId: string | null
   restaurantId: string | null
+  categoryId: string | null
   onSelect: (item: ItemSearchResult) => void
   onAddNew: (name: string) => void
 }
 
+export function packText(item: Pick<ItemSearchResult, 'pack_size' | 'pack_unit_code' | 'base_unit_code'>) {
+  return item.pack_size ? `Pack (${item.pack_size} ${item.pack_unit_code ?? item.base_unit_code})` : item.base_unit_code
+}
+
 export const ItemSearchCombobox = forwardRef<HTMLInputElement, ItemSearchComboboxProps>(function ItemSearchCombobox(
-  { supplierId, restaurantId, onSelect, onAddNew },
+  { supplierId, restaurantId, categoryId, onSelect, onAddNew },
   ref,
 ) {
   const [query, setQuery] = useState('')
   const [isOpen, setIsOpen] = useState(false)
-  const [categoryFilter, setCategoryFilter] = useState<string | null>(null)
   const debouncedQuery = useDebouncedValue(query, 250)
   const disabled = !supplierId || !restaurantId
 
-  const { data: allResults = [], isFetching } = useItemSearchQuery(supplierId, restaurantId, debouncedQuery)
-  const categories = useMemo(
-    () => Array.from(new Set(allResults.map((r) => r.category_name).filter((c): c is string => !!c))),
-    [allResults],
-  )
-  const results = categoryFilter ? allResults.filter((r) => r.category_name === categoryFilter) : allResults
+  const { data: results = [], isFetching } = useItemSearchQuery(supplierId, restaurantId, debouncedQuery, categoryId)
 
   useEffect(() => {
     function handleClickOutside() {
@@ -40,10 +39,11 @@ export const ItemSearchCombobox = forwardRef<HTMLInputElement, ItemSearchCombobo
   }, [isOpen])
 
   return (
-    <div className="relative" onClick={(e) => e.stopPropagation()}>
+    <div className="relative min-w-0 flex-1" onClick={(e) => e.stopPropagation()}>
       <Command shouldFilter={false} className="overflow-visible bg-transparent">
-        <div className="flex items-center gap-2 rounded-md border px-3">
-          <CommandInput
+        <div className="flex h-10 items-center gap-2 rounded-lg border-2 border-primary/60 bg-background px-3 focus-within:border-primary">
+          <Search className="size-4 shrink-0 text-muted-foreground" />
+          <CommandPrimitive.Input
             ref={ref}
             value={query}
             onValueChange={(v) => {
@@ -51,51 +51,26 @@ export const ItemSearchCombobox = forwardRef<HTMLInputElement, ItemSearchCombobo
               setIsOpen(true)
             }}
             onFocus={() => setIsOpen(true)}
-            placeholder={
-              disabled ? 'Select a supplier and restaurant first…' : 'Search by item name, SKU, brand or barcode…'
-            }
+            placeholder={disabled ? 'Select a restaurant and supplier first…' : 'Search by item name, SKU, brand or barcode…'}
             disabled={disabled}
-            className="border-0 px-0 focus-visible:ring-0"
+            className="h-full min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed"
           />
-          <kbd className="hidden shrink-0 rounded border bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground sm:inline">
-            Press ⌘K to focus
-          </kbd>
+          <span className="hidden shrink-0 items-center gap-1 text-xs text-muted-foreground sm:flex">
+            Press <kbd className="rounded border bg-muted px-1.5 py-0.5 text-[10px]">Ctrl K</kbd> to focus
+          </span>
         </div>
 
         {isOpen && !disabled && (
-          <div className="absolute top-full z-20 mt-1 w-full rounded-md border bg-popover shadow-md">
-            {categories.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 border-b p-2">
-                <Badge
-                  variant={categoryFilter === null ? 'default' : 'outline'}
-                  className="cursor-pointer"
-                  onClick={() => setCategoryFilter(null)}
-                >
-                  All categories
-                </Badge>
-                {categories.map((c) => (
-                  <Badge
-                    key={c}
-                    variant={categoryFilter === c ? 'default' : 'outline'}
-                    className={cn('cursor-pointer', categoryFilter === c && 'bg-primary')}
-                    onClick={() => setCategoryFilter((prev) => (prev === c ? null : c))}
-                  >
-                    {c}
-                  </Badge>
-                ))}
-              </div>
-            )}
-            <CommandList>
+          <div className="absolute top-full z-30 mt-1 w-full overflow-hidden sm:min-w-md rounded-lg border bg-popover shadow-lg">
+            <CommandList className="max-h-96">
               {isFetching && results.length === 0 ? (
                 <div className="flex items-center gap-2 p-4 text-sm text-muted-foreground">
                   <Loader2 className="size-4 animate-spin" /> Searching…
                 </div>
               ) : (
                 <>
-                  <CommandEmpty className="p-4 text-sm text-muted-foreground">
-                    No matching items in the catalogue.
-                  </CommandEmpty>
-                  <CommandGroup>
+                  <CommandEmpty className="p-4 text-sm text-muted-foreground">No matching items in the catalogue.</CommandEmpty>
+                  <CommandGroup className="p-0">
                     {results.map((item) => (
                       <CommandItem
                         key={item.product_id}
@@ -105,30 +80,29 @@ export const ItemSearchCombobox = forwardRef<HTMLInputElement, ItemSearchCombobo
                           setQuery('')
                           setIsOpen(false)
                         }}
-                        className="flex items-center gap-3 py-2"
+                        className="flex items-center gap-3 rounded-none border-b px-3 py-2.5 last:border-0"
                       >
-                        <Package className="size-4 shrink-0 text-muted-foreground" />
+                        <ItemThumb name={item.name} category={item.category_name} />
                         <div className="min-w-0 flex-1">
                           <div className="truncate font-medium">{item.name}</div>
                           <div className="truncate text-xs text-muted-foreground">
-                            {[item.sku, item.brand_name].filter(Boolean).join(' · ') || '—'}
-                            {' · '}
-                            {item.pack_size ? `Pack (${item.pack_size} ${item.pack_unit_code ?? item.base_unit_code})` : item.base_unit_code}
+                            {[item.sku && `SKU: ${item.sku}`, item.brand_name, item.category_name].filter(Boolean).join('  |  ') || '—'}
                           </div>
                         </div>
-                        {item.last_purchase_price !== null && (
-                          <div className="shrink-0 text-right text-xs text-muted-foreground">
-                            Last: {formatCurrency(item.last_purchase_price)}
-                            {item.last_purchase_date && <div>{formatDate(item.last_purchase_date)}</div>}
+                        <div className="shrink-0 text-right text-xs text-muted-foreground">
+                          <div>{packText(item)}</div>
+                          <div>
+                            {item.last_purchase_price !== null ? `Last purchase: ${formatCurrency(item.last_purchase_price)}` : 'No previous purchase'}
                           </div>
-                        )}
+                        </div>
+                        <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
                       </CommandItem>
                     ))}
                   </CommandGroup>
                 </>
               )}
               {query.trim() && (
-                <CommandGroup>
+                <CommandGroup className="border-t">
                   <CommandItem
                     value={`__add_new__${query}`}
                     onSelect={() => {
