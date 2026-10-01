@@ -39,7 +39,7 @@ export function EntrySection({ form }: { form: UseFormReturn<EmployeeRecordInput
   const stayExpiry = entry && isValid(entry) && stay !== '' && stay !== undefined ? format(addDays(entry, Number(stay)), 'yyyy-MM-dd') : ''
 
   return (
-    <SectionCard icon={PlaneLanding} title="Basic information · entry & initial visa">
+    <SectionCard icon={PlaneLanding} title="Basic information · entry & initial visa" lockKey="profile">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Field label="Initial visa type" className="lg:col-span-2">
           <Controller
@@ -95,7 +95,7 @@ export function InsuranceSection({
   const fineApplicable = watch('insurance_fine_applicable')
 
   return (
-    <SectionCard icon={ShieldCheck} title="Health & employment insurance">
+    <SectionCard icon={ShieldCheck} title="Health & employment insurance" lockKey="insurance">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Field label={<span className="flex items-center gap-2">Health insurance expiry <ExpiryBadge date={watch('health_insurance_expiry')} /></span>}>
           <IconInput icon={CalendarDays} type="date" {...register('health_insurance_expiry')} />

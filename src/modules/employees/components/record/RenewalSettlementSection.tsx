@@ -1,11 +1,11 @@
 import { useRef } from 'react'
 import type { UseFormReturn } from 'react-hook-form'
 import { Controller } from 'react-hook-form'
-import { CalendarDays, ClipboardList, FileText, Info, Loader2, Paperclip, Plus, Save } from 'lucide-react'
+import { CalendarDays, ClipboardList, FileText, Loader2, Paperclip, Plus, Save } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { formatCurrency } from '@/lib/utils/format'
 import type { EmployeeDocumentItem, EmployeeRecordInput } from '@/schemas/employee'
 import { DECISIONS, SETTLEMENT_DOCUMENT_TYPES, SETTLEMENT_STATUSES } from '../../employeeOptions'
 import { openEmployeeFile } from '../../hooks/useEmployeeRecord'
@@ -24,11 +24,11 @@ export function RenewalSettlementSection({
   onRemoveDoc: (key: string) => void
   saving: boolean
 }) {
-  const { register, control, formState } = form
+  const { register, control, watch, formState } = form
   const proofInputRef = useRef<HTMLInputElement>(null)
 
   return (
-    <SectionCard icon={FileText} title="Renewal & settlement">
+    <SectionCard icon={FileText} title="Renewal & settlement" lockKey="settlement">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 lg:grid-cols-6">
         <Field label="Decision date">
           <IconInput icon={CalendarDays} type="date" {...register('decision_date')} />
@@ -48,20 +48,8 @@ export function RenewalSettlementSection({
         <Field label="Settlement amount (AED)" error={formState.errors.settlement_amount?.message}>
           <Input className="h-10" type="number" step="0.01" min="0" placeholder="Enter amount" {...register('settlement_amount')} />
         </Field>
-        <Field label="Labour fine amount (AED)" error={formState.errors.labour_fine_amount?.message}>
-          <div className="relative">
-            <Input className="h-10 pr-9" type="number" step="0.01" min="0" placeholder="Pending verification" {...register('labour_fine_amount')} />
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button type="button" className="absolute top-1/2 right-2.5 -translate-y-1/2 text-muted-foreground" aria-label="About labour fines">
-                  <Info className="size-4" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent className="max-w-64">
-                Enter the fine shown on MOHRE / ICP after verifying it there. The system doesn't calculate fines — leave blank while pending verification.
-              </TooltipContent>
-            </Tooltip>
-          </div>
+        <Field label="Labour fine (AED)" hint="Edit in Labour fine details">
+          <Input className="h-10" value={watch('labour_fine_amount') === '' || watch('labour_fine_amount') === undefined ? 'Pending verification' : formatCurrency(Number(watch('labour_fine_amount')))} disabled readOnly />
         </Field>
         <Field label="Settlement status">
           <Controller

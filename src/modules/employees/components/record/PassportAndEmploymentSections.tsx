@@ -2,7 +2,6 @@ import { useRef } from 'react'
 import type { UseFormReturn } from 'react-hook-form'
 import { Controller } from 'react-hook-form'
 import { BookUser, BriefcaseBusiness, CalendarDays, CircleDollarSign, Globe, Hash, MapPin, Paperclip, TrendingDown, TrendingUp } from 'lucide-react'
-import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/utils/format'
@@ -26,8 +25,8 @@ export function PassportSection({
   const latest = passportDocs[passportDocs.length - 1]
 
   return (
-    <SectionCard icon={BookUser} title="Passport details">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <SectionCard icon={BookUser} title="Passport details" lockKey="passport">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-2">
         <Field label="Passport number">
           <IconInput icon={Hash} placeholder="e.g. N12345678" {...register('passport_number')} />
         </Field>
@@ -77,13 +76,16 @@ export function PassportSection({
           <div className="flex h-10 items-center gap-2 rounded-md border bg-primary/5 px-3 text-sm">
             <Paperclip className="size-4 shrink-0 text-primary" />
             {latest ? (
-              <button
-                type="button"
-                className="min-w-0 flex-1 truncate text-left font-medium"
-                onClick={latest.storage_path ? () => openEmployeeFile(latest.storage_path!) : undefined}
+              <a
+                href="#"
+                className="min-w-0 flex-1 truncate text-left font-medium hover:underline"
+                onClick={(e) => {
+                  e.preventDefault()
+                  if (latest.storage_path) openEmployeeFile(latest.storage_path)
+                }}
               >
                 {latest.file_name}
-              </button>
+              </a>
             ) : (
               <span className="flex-1 text-muted-foreground">No copy yet</span>
             )}
@@ -116,11 +118,8 @@ export function EmploymentSalarySection({ form }: { form: UseFormReturn<Employee
   const change = hasChange ? Number(renewal) - current : 0
 
   return (
-    <SectionCard icon={BriefcaseBusiness} title="Employment & salary">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Field label="Position">
-          <Input className="h-10" placeholder="e.g. Grill Chef" {...register('job_title')} />
-        </Field>
+    <SectionCard icon={BriefcaseBusiness} title="Employment & salary" lockKey="salary">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Field label="Current salary (AED / month)" error={formState.errors.base_salary?.message}>
           <IconInput icon={CircleDollarSign} type="number" step="0.01" min="0" placeholder="0.00" {...register('base_salary')} />
         </Field>

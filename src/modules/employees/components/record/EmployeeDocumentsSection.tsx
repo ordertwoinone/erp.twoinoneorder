@@ -77,6 +77,7 @@ export function EmployeeDocumentsSection({
     <SectionCard
       icon={FileText}
       title="Employee documents"
+      lockKey="documents"
       actions={
         <div className="flex flex-wrap items-start gap-3">
           <div>
@@ -136,10 +137,16 @@ export function EmployeeDocumentsSection({
         {TABS.map((t) => {
           const count = t.value === 'all' ? documents.length : documents.filter((d) => d.document_type === t.value).length
           return (
-            <button
+            // <a>, not <button>: the tabs must still work while the section is locked.
+            <a
               key={t.value}
-              type="button"
-              onClick={() => onDocFilterChange(t.value)}
+              href="#"
+              role="tab"
+              aria-selected={docFilter === t.value}
+              onClick={(e) => {
+                e.preventDefault()
+                onDocFilterChange(t.value)
+              }}
               className={cn(
                 'rounded-lg border px-4 py-1.5 text-sm font-medium transition-colors',
                 docFilter === t.value ? 'border-primary bg-primary text-primary-foreground' : 'bg-muted/40 text-muted-foreground hover:text-foreground',
@@ -147,7 +154,7 @@ export function EmployeeDocumentsSection({
             >
               {t.label}
               {count > 0 && <span className="ml-1.5 opacity-70">{count}</span>}
-            </button>
+            </a>
           )
         })}
       </div>

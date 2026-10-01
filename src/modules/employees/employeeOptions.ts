@@ -87,18 +87,19 @@ export const VISIT_VISA_SUPPORT: Option[] = [
   { value: 'employee_paid', label: 'Employee paid' },
 ]
 
-// UAE employment-visa journey, in order.
-export const VISA_STEPS: { key: string; label: string; hint: string }[] = [
-  { key: 'visit_visa', label: 'Visit visa', hint: 'Initial entry on visit' },
-  { key: 'job_offer', label: 'MOHRE job offer', hint: 'Offer letter signed' },
-  { key: 'work_permit', label: 'Work permit', hint: 'MOHRE work permit' },
-  { key: 'entry_permit', label: 'Entry permit / change status', hint: 'ICP / GDRFA' },
-  { key: 'status_adjustment', label: 'Inside-country status adjustment', hint: 'Change of status inside UAE' },
-  { key: 'health_insurance', label: 'Health insurance', hint: 'Policy issued' },
-  { key: 'medical_test', label: 'Medical fitness test', hint: 'DHA / MOHAP centre' },
-  { key: 'emirates_id_biometrics', label: 'Emirates ID application & biometrics', hint: 'Typing + biometrics' },
-  { key: 'residence_permit', label: 'Residence permit', hint: 'UAE residence visa' },
-  { key: 'emirates_id_card', label: 'Emirates ID card', hint: 'Card collected' },
+// UAE employment visa process at the typing centre, in order. `options` are
+// the sub-choices shown as chips on the step (e.g. salary block, category).
+export const VISA_STEPS: { key: string; label: string; options?: string[] }[] = [
+  { key: 'offer_letter', label: 'Offer letter typing' },
+  { key: 'labour_insurance', label: 'Labour insurance', options: ['Normal', 'High risk salary block'] },
+  { key: 'work_permit', label: 'Work permit', options: ['Category 1', 'Category 2', 'Category 3'] },
+  { key: 'entry_permit', label: 'Entry permit' },
+  { key: 'change_status', label: 'Change status' },
+  { key: 'visa_file', label: 'Visa file' },
+  { key: 'contract_tawjeeh', label: 'Contract submission + Tawjeeh class' },
+  { key: 'iloe_insurance', label: 'ILOE insurance (2 years)' },
+  { key: 'health_insurance', label: 'Health insurance' },
+  { key: 'residency_emirates_id', label: 'Residency + Emirates ID' },
 ]
 
 export const VISA_STEP_STATUSES: Option[] = [
@@ -110,6 +111,85 @@ export const VISA_STEP_STATUSES: Option[] = [
   { value: 'rejected', label: 'Rejected' },
   { value: 'expired', label: 'Expired' },
   { value: 'not_applicable', label: 'Not applicable' },
+]
+
+export const TYPING_PROCESSES: Option[] = [
+  { value: 'new_employment_visa', label: 'New employment visa' },
+  { value: 'renewal', label: 'Renewal' },
+  { value: 'transfer', label: 'Transfer' },
+  { value: 'status_change', label: 'Status change' },
+  { value: 'cancellation', label: 'Cancellation' },
+]
+
+export const PAYMENT_METHODS: Option[] = [
+  { value: 'cash', label: 'Cash' },
+  { value: 'card', label: 'Card' },
+  { value: 'bank_transfer', label: 'Bank transfer' },
+  { value: 'cheque', label: 'Cheque' },
+]
+
+export const PAID_BY: Option[] = [
+  { value: 'company', label: 'Company' },
+  { value: 'employee', label: 'Employee' },
+]
+
+export const PROBATION_STATUSES: Option[] = [
+  { value: 'in_probation', label: 'In probation' },
+  { value: 'pending_review', label: 'Pending review' },
+  { value: 'confirmed', label: 'Confirmed' },
+  { value: 'extended', label: 'Extended' },
+  { value: 'terminated', label: 'Terminated' },
+]
+
+export const LABOUR_FINE_STATUSES: Option[] = [
+  { value: 'none', label: 'No fine' },
+  { value: 'pending_verification', label: 'Pending verification' },
+  { value: 'verified', label: 'Verified' },
+  { value: 'paid', label: 'Paid' },
+  { value: 'waived', label: 'Waived' },
+]
+
+export const ISSUE_TYPES: Option[] = [
+  { value: 'complaint', label: 'Complaint' },
+  { value: 'issue', label: 'Issue' },
+  { value: 'warning', label: 'Warning' },
+  { value: 'request', label: 'Request' },
+  { value: 'appreciation', label: 'Appreciation' },
+]
+
+export const ISSUE_STATUSES: Option[] = [
+  { value: 'open', label: 'Open' },
+  { value: 'in_progress', label: 'In progress' },
+  { value: 'resolved', label: 'Resolved' },
+  { value: 'closed', label: 'Closed' },
+]
+
+export const ITEM_CATEGORIES: Option[] = [
+  { value: 'uniform', label: 'Uniform' },
+  { value: 'accommodation', label: 'Accommodation' },
+  { value: 'equipment', label: 'Equipment' },
+  { value: 'other', label: 'Other' },
+]
+
+export const ITEM_CONDITIONS: Option[] = [
+  { value: 'issued', label: 'Issued' },
+  { value: 'assigned', label: 'Assigned' },
+  { value: 'returned', label: 'Returned' },
+  { value: 'damaged', label: 'Damaged' },
+  { value: 'lost', label: 'Lost' },
+]
+
+export const INCENTIVE_BASES: Option[] = [
+  { value: 'eligible_sales', label: 'Eligible sales' },
+  { value: 'total_sales', label: 'Total sales' },
+  { value: 'orders', label: 'Orders' },
+]
+
+export const MONTHLY_STATUSES: Option[] = [
+  { value: 'pending', label: 'Pending' },
+  { value: 'approved', label: 'Approved' },
+  { value: 'paid', label: 'Paid' },
+  { value: 'rejected', label: 'Rejected' },
 ]
 
 export const FINE_STATUSES: Option[] = [

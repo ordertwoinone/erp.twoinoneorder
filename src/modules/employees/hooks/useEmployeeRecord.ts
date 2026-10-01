@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase/client'
 import { readApiResponse } from '@/lib/utils/readApiResponse'
 import type { EmployeeDocumentItem, EmployeeRecordInput } from '@/schemas/employee'
+import { computeIncentive } from '../components/record/recordUtils'
 
 const BUCKET = 'employee-documents'
 const ACCEPTED_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp']
@@ -14,7 +15,7 @@ export function useEmployeeRecordQuery(id: string | undefined) {
     queryKey: ['employees', 'record', id],
     enabled: !!id,
     queryFn: async () => {
-      const [employeeRes, documentsRes, vacationsRes, replacementsRes, visaStepsRes] = await Promise.all([
+      const [employeeRes, documentsRes, vacationsRes, replacementsRes, visaStepsRes, paymentsRes, issuesRes, itemsRes, monthlyRes] = await Promise.all([
         supabase.from('employees').select('*').eq('id', id!).single(),
         supabase
           .from('employee_documents')
@@ -32,18 +33,40 @@ export function useEmployeeRecordQuery(id: string | undefined) {
           .eq('employee_id', id!)
           .order('created_at'),
         supabase.from('employee_visa_steps').select('*, attachments(file_name, storage_path)').eq('employee_id', id!),
+        supabase
+          .from('employee_typing_payments')
+          .select('*, attachments(file_name, storage_path)')
+          .eq('employee_id', id!)
+          .order('payment_date', { nullsFirst: true })
+          .order('created_at'),
+        supabase.from('employee_issues').select('*, attachments(file_name, storage_path)').eq('employee_id', id!).order('issue_date', { ascending: false }),
+        supabase.from('employee_items').select('*').eq('employee_id', id!).order('created_at'),
+        supabase.from('employee_monthly_records').select('*').eq('employee_id', id!).order('period_month', { ascending: false }),
       ])
-      if (employeeRes.error) throw employeeRes.error
-      if (documentsRes.error) throw documentsRes.error
-      if (vacationsRes.error) throw vacationsRes.error
-      if (replacementsRes.error) throw replacementsRes.error
-      if (visaStepsRes.error) throw visaStepsRes.error
+      for (const res of [employeeRes, documentsRes, vacationsRes, replacementsRes, visaStepsRes, paymentsRes, issuesRes, itemsRes, monthlyRes]) {
+        if (res.error) throw res.error
+      }
+      const employee = employeeRes.data!
+
+      // Photo and labour-fine proof hang off employees by attachment id.
+      const fileIds = [employee.photo_attachment_id, employee.labour_fine_attachment_id].filter((v): v is string => !!v)
+      const files = fileIds.length
+        ? ((await supabase.from('attachments').select('id, file_name, storage_path').in('id', fileIds)).data ?? [])
+        : []
+      const file = (fileId: string | null) => files.find((f) => f.id === fileId) ?? null
+
       return {
-        employee: employeeRes.data,
-        documents: documentsRes.data,
-        vacations: vacationsRes.data,
-        replacements: replacementsRes.data,
-        visaSteps: visaStepsRes.data,
+        employee,
+        documents: documentsRes.data!,
+        vacations: vacationsRes.data!,
+        replacements: replacementsRes.data!,
+        visaSteps: visaStepsRes.data!,
+        typingPayments: paymentsRes.data!,
+        issues: issuesRes.data!,
+        items: itemsRes.data!,
+        monthlyRecords: monthlyRes.data!,
+        photo: file(employee.photo_attachment_id),
+        labourFineFile: file(employee.labour_fine_attachment_id),
       }
     },
   })
@@ -134,14 +157,57 @@ export function useSaveEmployeeRecord() {
           attachmentId = (await uploadEmployeeFile(step.pending_file, restaurantId, values.id)).attachmentId
         }
         const { attachment_name: _n, attachment_path: _p, pending_file: _f, ...rest } = step
-        const hasData = rest.status !== 'not_started' || attachmentId || Object.entries(rest).some(([k, v]) => k !== 'step_key' && k !== 'status' && v !== '' && v !== undefined && v !== null)
+        const hasData =
+          rest.status !== 'not_started' ||
+          attachmentId ||
+          Object.entries(rest).some(([k, v]) => k !== 'step_key' && k !== 'status' && v !== '' && v !== undefined && v !== null && v !== false)
         if (hasData) visaSteps.push({ ...rest, attachment_id: attachmentId })
       }
 
-      const { vacations: _v, replacements, visa_steps: _s, ...fields } = values
+      const upload = async (file: unknown, current: string | null | undefined) =>
+        file instanceof File ? (await uploadEmployeeFile(file, restaurantId, values.id)).attachmentId : (current ?? null)
+
+      const typingPayments = []
+      for (const p of values.typing_payments) {
+        const { record_id, attachment_name: _n, attachment_path: _p, pending_file, ...rest } = p
+        typingPayments.push({ ...rest, id: record_id, attachment_id: await upload(pending_file, p.attachment_id) })
+      }
+      const issues = []
+      for (const issue of values.issues) {
+        const { record_id, attachment_name: _n, attachment_path: _p, pending_file, ...rest } = issue
+        issues.push({ ...rest, id: record_id, attachment_id: await upload(pending_file, issue.attachment_id) })
+      }
+      const photoAttachmentId = await upload(values.photo_pending_file, values.photo_attachment_id)
+      const labourFineAttachmentId = await upload(values.labour_fine_pending_file, values.labour_fine_attachment_id)
+
+      const {
+        vacations: _v,
+        replacements,
+        visa_steps: _s,
+        typing_payments: _tp,
+        issues: _i,
+        items,
+        monthly_records,
+        photo_pending_file: _pf,
+        labour_fine_pending_file: _lf,
+        labour_fine_attachment_name: _ln,
+        labour_fine_attachment_path: _lp,
+        ...fields
+      } = values
       const payload = {
         ...fields,
+        photo_attachment_id: photoAttachmentId,
+        labour_fine_attachment_id: labourFineAttachmentId,
         visa_steps: visaSteps,
+        typing_payments: typingPayments,
+        issues,
+        items: items.map(({ record_id, ...rest }) => ({ ...rest, id: record_id })),
+        monthly_records: monthly_records.map(({ record_id, period_month, ...rest }) => ({
+          ...rest,
+          id: record_id,
+          period_month: `${period_month}-01`,
+          incentive_amount: fields.incentive_enabled ? computeIncentive(rest, fields.incentive_basis) : '',
+        })),
         work_permit_salary: fields.work_permit_salary === '' ? null : fields.work_permit_salary,
         base_salary: fields.base_salary === '' ? null : fields.base_salary,
         renewal_salary: fields.renewal_salary === '' ? null : fields.renewal_salary,
@@ -190,6 +256,86 @@ export function useDeleteEmployee() {
     },
     onError: (error: Error) => {
       toast.error('Unable to delete employee', { description: error.message })
+    },
+  })
+}
+
+/**
+ * Salary entries and loans (employee_advances) from Payroll. Both need
+ * payroll.view under RLS; without it they come back empty, and the page hides
+ * those sections anyway.
+ */
+export function useEmployeePayrollHistory(employeeId: string | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: ['employees', 'payroll-history', employeeId],
+    enabled: !!employeeId && enabled,
+    queryFn: async () => {
+      const [entriesRes, advancesRes] = await Promise.all([
+        supabase
+          .from('salary_entries')
+          .select('id, period_month, basic_salary, allowances_total, overtime_amount, deductions_total, advances_deducted, net_salary, payment_status, status, salary_payments(amount)')
+          .eq('employee_id', employeeId!)
+          .neq('status', 'cancelled')
+          .order('period_month'),
+        supabase.from('employee_advances').select('*').eq('employee_id', employeeId!).neq('status', 'cancelled').order('advance_date'),
+      ])
+      if (entriesRes.error) throw entriesRes.error
+      if (advancesRes.error) throw advancesRes.error
+      return { entries: entriesRes.data, advances: advancesRes.data }
+    },
+  })
+}
+
+export type PayrollHistory = NonNullable<ReturnType<typeof useEmployeePayrollHistory>['data']>
+
+export function useRecordLoan(employeeId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { restaurantId: string; amount: number; date: string; notes: string }) => {
+      const { error } = await supabase.from('employee_advances').insert({
+        employee_id: employeeId,
+        restaurant_id: input.restaurantId,
+        amount: input.amount,
+        balance_remaining: input.amount,
+        advance_date: input.date,
+        notes: input.notes || null,
+      })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employees', 'payroll-history', employeeId] })
+      toast.success('Loan recorded')
+    },
+    onError: (error: Error) => toast.error('Unable to record loan', { description: error.message }),
+  })
+}
+
+export function useEmployeeAssignments(employeeId: string | undefined) {
+  return useQuery({
+    queryKey: ['employees', 'assignments', employeeId],
+    enabled: !!employeeId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('employee_assignments')
+        .select('id, starts_at, ends_at, restaurants(name, code)')
+        .eq('employee_id', employeeId!)
+        .order('starts_at', { ascending: false })
+      if (error) throw error
+      return data
+    },
+  })
+}
+
+/** Short-lived signed URL for showing an image (e.g. the employee photo). */
+export function useSignedFileUrl(storagePath: string | null | undefined) {
+  return useQuery({
+    queryKey: ['employee-file-url', storagePath],
+    enabled: !!storagePath,
+    staleTime: 50 * 60 * 1000,
+    queryFn: async () => {
+      const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(storagePath!, 60 * 60)
+      if (error) throw error
+      return data.signedUrl
     },
   })
 }

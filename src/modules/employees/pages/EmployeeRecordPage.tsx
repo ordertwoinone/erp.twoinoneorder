@@ -2,17 +2,20 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ArrowLeft, Trash2 } from 'lucide-react'
+import { ArrowLeft, Eye, Loader2, Save, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { ConfirmActionDialog } from '@/components/shared/ConfirmActionDialog'
 import { FullScreenSpinner } from '@/components/shared/FullScreenSpinner'
+import { useAuth } from '@/hooks/useAuth'
 import { useRestaurantsQuery } from '@/hooks/useRestaurantsQuery'
 import { useRestaurantScope } from '@/hooks/useRestaurantScope'
 import { employeeRecordSchema, type EmployeeDocumentItem, type EmployeeRecordInput } from '@/schemas/employee'
 import { DOCUMENT_TYPES, VISA_STEPS, normalizeNationality, optionLabel } from '../employeeOptions'
 import {
   useDeleteEmployee,
+  useEmployeeAssignments,
+  useEmployeePayrollHistory,
   useEmployeeRecordQuery,
   useSaveEmployeeRecord,
   useScanEmployeeDocument,
@@ -20,7 +23,12 @@ import {
   type EmployeeRecordData,
   type ScannedEmployeeFields,
 } from '../hooks/useEmployeeRecord'
-import { EmployeeHeaderSection } from '../components/record/EmployeeHeaderSection'
+import { EmployeeHeaderSection, EmployeeKpiStrip, RecordModeBar } from '../components/record/EmployeeHeaderSection'
+import { RecordLockProvider } from '../components/record/RecordLock'
+import { useRecordLock } from '../components/record/recordLockContext'
+import { TypingCentreSection } from '../components/record/TypingCentreSection'
+import { IssuesSection, ItemsSection, LabourFineSection, LoansSection, ProbationSection } from '../components/record/PeopleSections'
+import { IncentivesSection, SalaryLedgerSection, SectionAccessTable, TransferHistorySection } from '../components/record/HistorySections'
 import { VisaSponsorshipSection } from '../components/record/VisaSponsorshipSection'
 import { EmployeeDocumentsSection } from '../components/record/EmployeeDocumentsSection'
 import { EmploymentSalarySection, PassportSection } from '../components/record/PassportAndEmploymentSections'
@@ -28,7 +36,7 @@ import { VacationSection } from '../components/record/VacationSection'
 import { ReplacementsSection } from '../components/record/ReplacementsSection'
 import { RenewalSettlementSection } from '../components/record/RenewalSettlementSection'
 import { EntrySection, InsuranceSection } from '../components/record/EntryAndInsuranceSections'
-import { VisaJourneySection, VisitVisaFundingSection } from '../components/record/VisaJourneySection'
+import { VisitVisaFundingSection } from '../components/record/VisitVisaFundingSection'
 
 const s = (v: string | null | undefined) => v ?? ''
 const n = (v: number | null | undefined): number | '' => (v === null || v === undefined ? '' : v)
@@ -120,22 +128,88 @@ function toFormValues(id: string, restaurantId: string, record?: EmployeeRecordD
       const saved = record?.visaSteps.find((v) => v.step_key === key)
       return {
         step_key: key,
+        step_option: s(saved?.step_option),
         status: saved?.status ?? 'not_started',
         application_date: s(saved?.application_date),
         approval_date: s(saved?.approval_date),
         expiry_date: s(saved?.expiry_date),
+        expiry_not_applicable: saved?.expiry_not_applicable ?? false,
         government_fee: n(saved?.government_fee),
         other_charges: n(saved?.other_charges),
-        amount_paid: n(saved?.amount_paid),
         fine_amount: n(saved?.fine_amount),
         fine_status: s(saved?.fine_status),
-        payment_date: s(saved?.payment_date),
         notes: s(saved?.notes),
         attachment_id: saved?.attachment_id ?? null,
         attachment_name: saved?.attachments?.file_name ?? null,
         attachment_path: saved?.attachments?.storage_path ?? null,
       }
     }),
+    joining_date: s(e?.joining_date),
+    photo_attachment_id: e?.photo_attachment_id ?? null,
+    performance_rating: n(e?.performance_rating),
+    probation_months: n(e?.probation_months),
+    probation_end_date: s(e?.probation_end_date),
+    probation_status: s(e?.probation_status),
+    typing_centre_name: s(e?.typing_centre_name),
+    typing_centre_contact: s(e?.typing_centre_contact),
+    typing_application_ref: s(e?.typing_application_ref),
+    typing_process: s(e?.typing_process) || 'new_employment_visa',
+    labour_fine_status: s(e?.labour_fine_status),
+    labour_fine_checked_date: s(e?.labour_fine_checked_date),
+    labour_fine_reference: s(e?.labour_fine_reference),
+    labour_fine_remarks: s(e?.labour_fine_remarks),
+    labour_fine_attachment_id: e?.labour_fine_attachment_id ?? null,
+    labour_fine_attachment_name: record?.labourFineFile?.file_name ?? null,
+    labour_fine_attachment_path: record?.labourFineFile?.storage_path ?? null,
+    loan_monthly_installment: n(e?.loan_monthly_installment),
+    incentive_enabled: e?.incentive_enabled ?? false,
+    incentive_basis: s(e?.incentive_basis) || 'eligible_sales',
+    incentive_rate: n(e?.incentive_rate),
+    typing_payments: (record?.typingPayments ?? []).map((p) => ({
+      record_id: p.id,
+      step_key: p.step_key,
+      invoice_amount: n(p.invoice_amount),
+      payment_amount: n(p.payment_amount),
+      payment_date: s(p.payment_date),
+      payment_method: s(p.payment_method),
+      reference: s(p.reference),
+      paid_by: s(p.paid_by),
+      attachment_id: p.attachment_id,
+      attachment_name: p.attachments?.file_name ?? null,
+      attachment_path: p.attachments?.storage_path ?? null,
+    })),
+    issues: (record?.issues ?? []).map((i) => ({
+      record_id: i.id,
+      issue_date: i.issue_date,
+      issue_type: i.issue_type,
+      description: s(i.description),
+      assigned_to: s(i.assigned_to),
+      status: i.status,
+      attachment_id: i.attachment_id,
+      attachment_name: i.attachments?.file_name ?? null,
+      attachment_path: i.attachments?.storage_path ?? null,
+    })),
+    items: (record?.items ?? []).map((i) => ({
+      record_id: i.id,
+      item_name: i.item_name,
+      category: i.category,
+      quantity: i.quantity,
+      size_allocation: s(i.size_allocation),
+      issued_date: s(i.issued_date),
+      condition: i.condition,
+      acknowledged: i.acknowledged,
+    })),
+    monthly_records: (record?.monthlyRecords ?? []).map((m) => ({
+      record_id: m.id,
+      period_month: m.period_month.slice(0, 7),
+      restaurant_id: s(m.restaurant_id),
+      attendance_days: n(m.attendance_days),
+      working_days: n(m.working_days),
+      eligible_sales: n(m.eligible_sales),
+      orders_count: n(m.orders_count),
+      incentive_rate: n(m.incentive_rate),
+      status: m.status,
+    })),
   }
 }
 
@@ -166,6 +240,9 @@ export default function EmployeeRecordPage() {
   const scanDocument = useScanEmployeeDocument()
   const deleteEmployee = useDeleteEmployee()
   const navigate = useNavigate()
+  const { hasPermission } = useAuth()
+  const { data: payroll, isLoading: payrollLoading } = useEmployeePayrollHistory(routeId, hasPermission('payroll.view'))
+  const { data: assignments, isLoading: assignmentsLoading } = useEmployeeAssignments(routeId)
 
   const form = useForm<EmployeeRecordInput>({
     resolver: zodResolver(employeeRecordSchema),
@@ -264,14 +341,14 @@ export default function EmployeeRecordPage() {
   if (routeId && error) return <p className="p-6 text-sm text-destructive">Unable to load this employee: {(error as Error).message}</p>
 
   return (
+    <RecordLockProvider isNew={isNew}>
     <form
-      className="mx-auto max-w-7xl space-y-5 pb-10"
+      className="mx-auto max-w-7xl space-y-5 pb-24"
       noValidate
       onSubmit={form.handleSubmit(
         (values) => saveRecord.mutateAsync({ values, documents }),
         () => {
-          toast.error('Some fields need attention', { description: 'Check the highlighted fields.' })
-          window.scrollTo({ top: 0, behavior: 'smooth' })
+          toast.error('Some fields need attention', { description: 'Check the highlighted fields — the section may need unlocking.' })
         },
       )}
     >
@@ -299,31 +376,53 @@ export default function EmployeeRecordPage() {
         )}
       </div>
 
-      <EmployeeHeaderSection form={form} restaurants={restaurants} docFilter={docFilter} onDocFilterChange={setDocFilter} />
+      <RecordModeBar isNew={isNew} />
+      <EmployeeHeaderSection form={form} restaurants={restaurants} photoPath={record?.photo?.storage_path} />
+      <EmployeeKpiStrip form={form} />
       <EntrySection form={form} />
-      <VisaSponsorshipSection form={form} restaurants={restaurants} />
-      <EmployeeDocumentsSection
-        form={form}
-        documents={documents}
-        docFilter={docFilter}
-        onDocFilterChange={setDocFilter}
-        onAttach={attachFiles}
-        onRemove={(key) => setDocuments((prev) => prev.filter((d) => d.key !== key))}
-        onScan={scanFiles}
-        scanning={scanDocument.isPending}
-      />
-      <PassportSection form={form} passportDocs={passportDocs} onAttachPassport={(files) => attachFiles(files, 'passport')} />
-      <InsuranceSection
-        form={form}
-        insuranceDocs={insuranceDocs}
-        onAttach={(files) => attachFiles(files, 'insurance')}
-        onRemoveDoc={(key) => setDocuments((prev) => prev.filter((d) => d.key !== key))}
-      />
-      <EmploymentSalarySection form={form} />
+      <div className="grid gap-5 xl:grid-cols-2">
+        <VisaSponsorshipSection form={form} restaurants={restaurants} />
+        <EmployeeDocumentsSection
+          form={form}
+          documents={documents}
+          docFilter={docFilter}
+          onDocFilterChange={setDocFilter}
+          onAttach={attachFiles}
+          onRemove={(key) => setDocuments((prev) => prev.filter((d) => d.key !== key))}
+          onScan={scanFiles}
+          scanning={scanDocument.isPending}
+        />
+      </div>
+      <TypingCentreSection form={form} />
+      <div className="grid gap-5 xl:grid-cols-2">
+        <PassportSection form={form} passportDocs={passportDocs} onAttachPassport={(files) => attachFiles(files, 'passport')} />
+        <div className="space-y-5">
+          <EmploymentSalarySection form={form} />
+          <InsuranceSection
+            form={form}
+            insuranceDocs={insuranceDocs}
+            onAttach={(files) => attachFiles(files, 'insurance')}
+            onRemoveDoc={(key) => setDocuments((prev) => prev.filter((d) => d.key !== key))}
+          />
+        </div>
+      </div>
+      <div className="grid gap-5 xl:grid-cols-2">
+        <ProbationSection form={form} />
+        <LoansSection form={form} history={payroll} loading={payrollLoading} employeeId={employeeId} isNew={isNew} />
+      </div>
       <VacationSection form={form} />
-      <VisaJourneySection form={form} />
-      <VisitVisaFundingSection form={form} />
-      <ReplacementsSection form={form} />
+      <IssuesSection form={form} />
+      <ItemsSection form={form} />
+      <div className="grid gap-5 xl:grid-cols-2">
+        <LabourFineSection form={form} />
+        <VisitVisaFundingSection form={form} />
+      </div>
+      <div className="grid gap-5 xl:grid-cols-2">
+        <TransferHistorySection assignments={assignments} loading={assignmentsLoading} />
+        <ReplacementsSection form={form} />
+      </div>
+      <IncentivesSection form={form} restaurants={restaurants} />
+      <SalaryLedgerSection history={payroll} loading={payrollLoading} />
       <RenewalSettlementSection
         form={form}
         settlementDocs={settlementDocs}
@@ -331,6 +430,28 @@ export default function EmployeeRecordPage() {
         onRemoveDoc={(key) => setDocuments((prev) => prev.filter((d) => d.key !== key))}
         saving={saveRecord.isPending}
       />
+      <SectionAccessTable />
+      <StickySaveBar saving={saveRecord.isPending} dirty={form.formState.isDirty || documents.some((d) => d.pending_file)} />
     </form>
+    </RecordLockProvider>
+  )
+}
+
+/** Shown whenever something is editable, so Save is always one click away. */
+function StickySaveBar({ saving, dirty }: { saving: boolean; dirty: boolean }) {
+  const lock = useRecordLock()
+  if (!lock.anyUnlocked) return null
+  return (
+    <div className="sticky bottom-0 z-20 -mx-1 flex items-center justify-end gap-3 rounded-xl border bg-card/95 px-4 py-3 shadow-lg backdrop-blur">
+      <span className="mr-auto text-sm text-muted-foreground">{dirty ? 'You have unsaved changes' : 'No changes yet'}</span>
+      {!lock.alwaysUnlocked && (
+        <Button type="button" variant="outline" onClick={lock.lockAll}>
+          <Eye /> Back to view mode
+        </Button>
+      )}
+      <Button type="submit" disabled={saving}>
+        {saving ? <Loader2 className="animate-spin" /> : <Save />} Save changes
+      </Button>
+    </div>
   )
 }

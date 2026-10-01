@@ -32,18 +32,19 @@ export const replacementRowSchema = z.object({
 })
 export type ReplacementRow = z.infer<typeof replacementRowSchema>
 
+// Typing-centre step. application_date is shown as "Process start date".
 export const visaStepRowSchema = z.object({
   step_key: z.string(),
+  step_option: optionalText,
   status: z.string(),
   application_date: optionalDate,
   approval_date: optionalDate,
   expiry_date: optionalDate,
+  expiry_not_applicable: z.boolean(),
   government_fee: optionalAmount,
   other_charges: optionalAmount,
-  amount_paid: optionalAmount,
   fine_amount: optionalAmount,
   fine_status: optionalText,
-  payment_date: optionalDate,
   notes: optionalText,
   attachment_id: z.string().optional().nullable(),
   attachment_name: z.string().optional().nullable(),
@@ -51,6 +52,64 @@ export const visaStepRowSchema = z.object({
   pending_file: z.any().optional(),
 })
 export type VisaStepRow = z.infer<typeof visaStepRowSchema>
+
+// The rows below keep their DB id in `record_id` (client-generated for new
+// rows) because useFieldArray reserves `id`.
+const attachmentFields = {
+  attachment_id: z.string().optional().nullable(),
+  attachment_name: z.string().optional().nullable(),
+  attachment_path: z.string().optional().nullable(),
+  pending_file: z.any().optional(),
+}
+
+export const typingPaymentRowSchema = z.object({
+  record_id: z.string(),
+  step_key: z.string().min(1, 'Choose the service'),
+  invoice_amount: optionalAmount,
+  payment_amount: z.union([z.literal(''), z.coerce.number().min(0, 'Cannot be negative')]).refine((v): boolean => v !== '', 'Enter the amount paid'),
+  payment_date: optionalDate,
+  payment_method: optionalText,
+  reference: optionalText,
+  paid_by: optionalText,
+  ...attachmentFields,
+})
+export type TypingPaymentRow = z.infer<typeof typingPaymentRowSchema>
+
+export const issueRowSchema = z.object({
+  record_id: z.string(),
+  issue_date: z.string().min(1, 'Date is required'),
+  issue_type: z.string(),
+  description: optionalText,
+  assigned_to: optionalText,
+  status: z.string(),
+  ...attachmentFields,
+})
+export type IssueRow = z.infer<typeof issueRowSchema>
+
+export const itemRowSchema = z.object({
+  record_id: z.string(),
+  item_name: z.string().trim().min(1, 'Item is required'),
+  category: z.string(),
+  quantity: z.union([z.literal(''), z.coerce.number().int().min(0)]).optional(),
+  size_allocation: optionalText,
+  issued_date: optionalDate,
+  condition: z.string(),
+  acknowledged: z.boolean(),
+})
+export type ItemRow = z.infer<typeof itemRowSchema>
+
+export const monthlyRecordRowSchema = z.object({
+  record_id: z.string(),
+  period_month: z.string().regex(/^\d{4}-\d{2}$/, 'Pick a month'),
+  restaurant_id: optionalText,
+  attendance_days: z.union([z.literal(''), z.coerce.number().int().min(0).max(31)]).optional(),
+  working_days: z.union([z.literal(''), z.coerce.number().int().min(0).max(31)]).optional(),
+  eligible_sales: optionalAmount,
+  orders_count: z.union([z.literal(''), z.coerce.number().int().min(0)]).optional(),
+  incentive_rate: z.union([z.literal(''), z.coerce.number().min(0).max(100)]).optional(),
+  status: z.string(),
+})
+export type MonthlyRecordRow = z.infer<typeof monthlyRecordRowSchema>
 
 export const employeeRecordSchema = z.object({
   id: z.string().uuid(),
@@ -122,6 +181,36 @@ export const employeeRecordSchema = z.object({
   visit_visa_monthly_deduction: optionalAmount,
   visit_visa_recovered_amount: optionalAmount,
   visa_steps: z.array(visaStepRowSchema),
+
+  joining_date: optionalDate,
+  photo_attachment_id: z.string().optional().nullable(),
+  photo_pending_file: z.any().optional(),
+  performance_rating: z.union([z.literal(''), z.coerce.number().min(0, '0 – 5').max(5, '0 – 5')]).optional(),
+  probation_months: z.union([z.literal(''), z.coerce.number().int().min(0).max(24)]).optional(),
+  probation_end_date: optionalDate,
+  probation_status: optionalText,
+  typing_centre_name: optionalText,
+  typing_centre_contact: optionalText,
+  typing_application_ref: optionalText,
+  typing_process: optionalText,
+  labour_fine_status: optionalText,
+  labour_fine_checked_date: optionalDate,
+  labour_fine_reference: optionalText,
+  labour_fine_remarks: optionalText,
+  labour_fine_attachment_id: z.string().optional().nullable(),
+  labour_fine_attachment_name: z.string().optional().nullable(),
+  labour_fine_attachment_path: z.string().optional().nullable(),
+  labour_fine_pending_file: z.any().optional(),
+  loan_monthly_installment: optionalAmount,
+  incentive_enabled: z.boolean(),
+  incentive_basis: optionalText,
+  incentive_rate: z.union([z.literal(''), z.coerce.number().min(0).max(100)]).optional(),
+  typing_payments: z.array(typingPaymentRowSchema),
+  issues: z.array(issueRowSchema),
+  items: z.array(itemRowSchema),
+  monthly_records: z
+    .array(monthlyRecordRowSchema)
+    .refine((rows) => new Set(rows.map((r) => r.period_month)).size === rows.length, 'Each month can only appear once'),
 })
 
 export type EmployeeRecordInput = z.infer<typeof employeeRecordSchema>

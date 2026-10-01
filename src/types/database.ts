@@ -870,6 +870,24 @@ export interface Database {
           visit_visa_repayment_start: string | null
           visit_visa_monthly_deduction: number | null
           visit_visa_recovered_amount: number | null
+          photo_attachment_id: string | null
+          performance_rating: number | null
+          probation_months: number | null
+          probation_end_date: string | null
+          probation_status: string | null
+          typing_centre_name: string | null
+          typing_centre_contact: string | null
+          typing_application_ref: string | null
+          typing_process: string | null
+          labour_fine_status: string | null
+          labour_fine_checked_date: string | null
+          labour_fine_reference: string | null
+          labour_fine_remarks: string | null
+          labour_fine_attachment_id: string | null
+          loan_monthly_installment: number | null
+          incentive_enabled: boolean
+          incentive_basis: string | null
+          incentive_rate: number | null
           is_shared_employee: boolean
           created_at: string
           updated_at: string
@@ -951,6 +969,8 @@ export interface Database {
           payment_date: string | null
           notes: string | null
           attachment_id: string | null
+          step_option: string | null
+          expiry_not_applicable: boolean
           created_at: string
           updated_at: string
         }
@@ -965,6 +985,126 @@ export interface Database {
             referencedColumns: ['id']
           },
         ]
+      }
+      employee_typing_payments: {
+        Row: {
+          id: string
+          employee_id: string
+          step_key: string
+          invoice_amount: number | null
+          payment_amount: number
+          payment_date: string | null
+          payment_method: string | null
+          reference: string | null
+          paid_by: string | null
+          attachment_id: string | null
+          created_by: string | null
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['employee_typing_payments']['Row']> & { employee_id: string; step_key: string; payment_amount: number }
+        Update: Partial<Database['public']['Tables']['employee_typing_payments']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'employee_typing_payments_attachment_id_fkey'
+            columns: ['attachment_id']
+            isOneToOne: false
+            referencedRelation: 'attachments'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      employee_issues: {
+        Row: {
+          id: string
+          employee_id: string
+          issue_date: string
+          issue_type: string
+          description: string | null
+          assigned_to: string | null
+          status: string
+          attachment_id: string | null
+          created_by: string | null
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['employee_issues']['Row']> & { employee_id: string; issue_date: string }
+        Update: Partial<Database['public']['Tables']['employee_issues']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'employee_issues_attachment_id_fkey'
+            columns: ['attachment_id']
+            isOneToOne: false
+            referencedRelation: 'attachments'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      employee_items: {
+        Row: {
+          id: string
+          employee_id: string
+          item_name: string
+          category: string
+          quantity: number
+          size_allocation: string | null
+          issued_date: string | null
+          condition: string
+          acknowledged: boolean
+          created_by: string | null
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['employee_items']['Row']> & { employee_id: string; item_name: string }
+        Update: Partial<Database['public']['Tables']['employee_items']['Row']>
+        Relationships: []
+      }
+      employee_monthly_records: {
+        Row: {
+          id: string
+          employee_id: string
+          period_month: string
+          restaurant_id: string | null
+          attendance_days: number | null
+          working_days: number | null
+          eligible_sales: number | null
+          orders_count: number | null
+          incentive_rate: number | null
+          incentive_amount: number | null
+          status: string
+          created_by: string | null
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['employee_monthly_records']['Row']> & { employee_id: string; period_month: string }
+        Update: Partial<Database['public']['Tables']['employee_monthly_records']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'employee_monthly_records_restaurant_id_fkey'
+            columns: ['restaurant_id']
+            isOneToOne: false
+            referencedRelation: 'restaurants'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      employee_advances: {
+        Row: {
+          id: string
+          employee_id: string
+          restaurant_id: string
+          amount: number
+          advance_date: string
+          balance_remaining: number
+          status: 'open' | 'settled' | 'cancelled'
+          notes: string | null
+          created_by: string | null
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['employee_advances']['Row']> & {
+          employee_id: string
+          restaurant_id: string
+          amount: number
+          balance_remaining: number
+        }
+        Update: Partial<Database['public']['Tables']['employee_advances']['Row']>
+        Relationships: []
       }
       employee_replacements: {
         Row: {
@@ -1061,7 +1201,15 @@ export interface Database {
           starts_at: string
         }
         Update: Partial<Database['public']['Tables']['employee_assignments']['Row']>
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'employee_assignments_restaurant_id_fkey'
+            columns: ['restaurant_id']
+            isOneToOne: false
+            referencedRelation: 'restaurants'
+            referencedColumns: ['id']
+          },
+        ]
       }
       operating_expenses: {
         Row: {
@@ -1164,7 +1312,15 @@ export interface Database {
           payment_method: 'bank' | 'cash'
         }
         Update: Partial<Database['public']['Tables']['salary_payments']['Row']>
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'salary_payments_salary_entry_id_fkey'
+            columns: ['salary_entry_id']
+            isOneToOne: false
+            referencedRelation: 'salary_entries'
+            referencedColumns: ['id']
+          },
+        ]
       }
       purchase_requests: {
         Row: {

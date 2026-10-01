@@ -1,33 +1,88 @@
 import type { ComponentProps, ReactNode } from 'react'
 import type { LucideIcon } from 'lucide-react'
-import { Paperclip, X } from 'lucide-react'
+import { Eye, Lock, LockOpen, Paperclip, Users, X } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import type { Option } from '../../employeeOptions'
+import { sectionAccess } from '../../recordAccess'
+import { useRecordLock } from './recordLockContext'
 
 export function SectionCard({
   icon: Icon,
   title,
   actions,
+  lockKey,
+  className,
   children,
 }: {
   icon: LucideIcon
   title: ReactNode
   actions?: ReactNode
+  /** Section key from recordAccess — adds Locked/Unlock, "Who can view?" and hides it from users without access. */
+  lockKey?: string
+  className?: string
   children: ReactNode
 }) {
+  const lock = useRecordLock()
+  if (lockKey && !lock.canView(lockKey)) return null
+  const access = lockKey ? sectionAccess(lockKey) : undefined
+  const unlocked = !lockKey || lock.isUnlocked(lockKey)
+  const editable = !lockKey || lock.canEdit(lockKey)
+
   return (
-    <section className="rounded-2xl border bg-card p-5 shadow-sm">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+    <section className={cn('min-w-0 rounded-2xl border bg-card p-5 shadow-sm', className)}>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <h2 className="flex items-center gap-2.5 text-lg font-semibold">
           <Icon className="size-6 text-primary" />
           {title}
         </h2>
-        {actions}
+        <div className="flex flex-wrap items-center gap-2">
+          {unlocked && actions}
+          {lockKey && !lock.alwaysUnlocked && editable && (
+            unlocked ? (
+              <span className="inline-flex items-center gap-1 rounded-md border border-success/30 bg-success/10 px-2 py-1 text-xs font-medium text-success">
+                <LockOpen className="size-3.5" /> Unlocked
+              </span>
+            ) : (
+              <>
+                <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                  <Lock className="size-3.5" /> Locked
+                </span>
+                <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => lock.requestUnlock(lockKey)}>
+                  Unlock to edit
+                </Button>
+              </>
+            )
+          )}
+          {access && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex cursor-default items-center gap-1.5 rounded-md px-1.5 py-1 text-[11px] leading-tight text-muted-foreground hover:bg-muted">
+                  <Eye className="size-3.5" />
+                  <Users className="size-3.5" />
+                  <span className="hidden sm:block">
+                    Who can view?
+                    <br />
+                    {access.viewers}
+                  </span>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                Can view: {access.viewers}. Can edit: {access.editors}.
+              </TooltipContent>
+            </Tooltip>
+          )}
+        </div>
       </div>
-      {children}
+      {/* A disabled fieldset disables every input, select and button inside it in one go.
+          Links (<a>) stay clickable, so file chips can still be opened in view mode. */}
+      <fieldset disabled={!unlocked} className="m-0 min-w-0 border-0 p-0">
+        {children}
+      </fieldset>
     </section>
   )
 }
@@ -132,12 +187,21 @@ export function FileChip({
   return (
     <div className="flex min-w-0 items-center gap-3 rounded-lg border bg-background px-3 py-2">
       <Paperclip className="size-5 shrink-0 text-primary" />
-      <button type="button" className="min-w-0 flex-1 text-left" onClick={onOpen} disabled={!onOpen}>
+      {/* <a>, not <button>: must stay usable inside a locked (disabled) section. */}
+      <a
+        href="#"
+        role="button"
+        className={cn('min-w-0 flex-1 text-left', !onOpen && 'pointer-events-none')}
+        onClick={(e) => {
+          e.preventDefault()
+          onOpen?.()
+        }}
+      >
         <p className="truncate text-sm font-medium">{name}</p>
         <p className="text-xs text-muted-foreground">
           {[ext, size !== undefined ? formatFileSize(size) : null, pending ? 'Uploads on save' : null].filter(Boolean).join(' • ')}
         </p>
-      </button>
+      </a>
       {onRemove && (
         <button type="button" onClick={onRemove} className="shrink-0 text-muted-foreground hover:text-destructive" aria-label={`Remove ${name}`}>
           <X className="size-4" />

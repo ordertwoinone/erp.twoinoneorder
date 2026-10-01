@@ -90,6 +90,7 @@ export function ReplacementsSection({ form }: { form: UseFormReturn<EmployeeReco
     <SectionCard
       icon={Users}
       title="Potential replacements"
+      lockKey="replacements"
       actions={
         <div className="flex flex-wrap gap-2">
           <Popover open={matches.length > 0} onOpenChange={(open) => !open && setMatches([])}>

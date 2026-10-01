@@ -23,7 +23,7 @@ export function VacationSection({ form }: { form: UseFormReturn<EmployeeRecordIn
   const claimed = watch('flight_ticket_claimed')
 
   return (
-    <SectionCard icon={Plane} title="Vacation & flight tickets">
+    <SectionCard icon={Plane} title="Vacation & flight tickets" lockKey="vacation">
       <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,20rem)_auto]">
         <Field label="Flight ticket claimed?">
           <Controller

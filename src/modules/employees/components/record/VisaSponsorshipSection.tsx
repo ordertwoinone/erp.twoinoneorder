@@ -12,8 +12,8 @@ export function VisaSponsorshipSection({ form, restaurants }: { form: UseFormRet
   const expiryAvailable = watch('work_permit_expiry_available')
 
   return (
-    <SectionCard icon={IdCard} title="Visa & sponsorship">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <SectionCard icon={IdCard} title="Visa & sponsorship" lockKey="visa">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-2">
         <Field label="Visa sponsorship type">
           <Controller
             control={control}
