@@ -7,34 +7,34 @@
 
 -- === Employee columns ============================================================
 alter table employees
-  add column photo_attachment_id uuid references attachments(id),
-  add column performance_rating numeric(2,1) check (performance_rating between 0 and 5),
-  add column probation_months integer check (probation_months between 0 and 24),
-  add column probation_end_date date,
-  add column probation_status text
+  add column if not exists photo_attachment_id uuid references attachments(id),
+  add column if not exists performance_rating numeric(2,1) check (performance_rating between 0 and 5),
+  add column if not exists probation_months integer check (probation_months between 0 and 24),
+  add column if not exists probation_end_date date,
+  add column if not exists probation_status text
     check (probation_status in ('in_probation', 'pending_review', 'confirmed', 'extended', 'terminated')),
-  add column typing_centre_name text,
-  add column typing_centre_contact text,
-  add column typing_application_ref text,
-  add column typing_process text
+  add column if not exists typing_centre_name text,
+  add column if not exists typing_centre_contact text,
+  add column if not exists typing_application_ref text,
+  add column if not exists typing_process text
     check (typing_process in ('new_employment_visa', 'renewal', 'transfer', 'cancellation', 'status_change')),
-  add column labour_fine_status text
+  add column if not exists labour_fine_status text
     check (labour_fine_status in ('none', 'pending_verification', 'verified', 'paid', 'waived')),
-  add column labour_fine_checked_date date,
-  add column labour_fine_reference text,
-  add column labour_fine_remarks text,
-  add column labour_fine_attachment_id uuid references attachments(id),
-  add column loan_monthly_installment numeric(14,2) check (loan_monthly_installment >= 0),
-  add column incentive_enabled boolean not null default false,
-  add column incentive_basis text check (incentive_basis in ('eligible_sales', 'total_sales', 'orders')),
-  add column incentive_rate numeric(5,2) check (incentive_rate between 0 and 100);
+  add column if not exists labour_fine_checked_date date,
+  add column if not exists labour_fine_reference text,
+  add column if not exists labour_fine_remarks text,
+  add column if not exists labour_fine_attachment_id uuid references attachments(id),
+  add column if not exists loan_monthly_installment numeric(14,2) check (loan_monthly_installment >= 0),
+  add column if not exists incentive_enabled boolean not null default false,
+  add column if not exists incentive_basis text check (incentive_basis in ('eligible_sales', 'total_sales', 'orders')),
+  add column if not exists incentive_rate numeric(5,2) check (incentive_rate between 0 and 100);
 
 -- === Typing-centre steps (was the 0049 visa journey) =============================
 -- The step list changed to the UAE typing-centre process. Carry over the
 -- steps that map one-to-one; the rest are dropped on the next save.
 alter table employee_visa_steps
-  add column step_option text,
-  add column expiry_not_applicable boolean not null default false;
+  add column if not exists step_option text,
+  add column if not exists expiry_not_applicable boolean not null default false;
 
 update employee_visa_steps set step_key = 'offer_letter' where step_key = 'job_offer';
 update employee_visa_steps set step_key = 'change_status' where step_key = 'status_adjustment';
@@ -45,7 +45,7 @@ where step_key = 'residence_permit'
 -- Payment ledger for the typing-centre steps. A step's "Paid" is the sum of
 -- its payments; amount_paid typed on a step before this migration becomes a
 -- payment row so nothing is lost.
-create table employee_typing_payments (
+create table if not exists employee_typing_payments (
   id uuid primary key default gen_random_uuid(),
   employee_id uuid not null references employees(id) on delete cascade,
   step_key text not null,
@@ -59,15 +59,17 @@ create table employee_typing_payments (
   created_by uuid references profiles(id),
   created_at timestamptz not null default now()
 );
-create index employee_typing_payments_employee_idx on employee_typing_payments(employee_id, step_key);
+create index if not exists employee_typing_payments_employee_idx on employee_typing_payments(employee_id, step_key);
 
 insert into employee_typing_payments (employee_id, step_key, invoice_amount, payment_amount, payment_date, attachment_id, paid_by)
-select employee_id, step_key, coalesce(government_fee, 0) + coalesce(other_charges, 0), amount_paid, payment_date, attachment_id, 'company'
-from employee_visa_steps
-where coalesce(amount_paid, 0) > 0;
+select s.employee_id, s.step_key, coalesce(s.government_fee, 0) + coalesce(s.other_charges, 0), s.amount_paid, s.payment_date, s.attachment_id, 'company'
+from employee_visa_steps s
+where coalesce(s.amount_paid, 0) > 0
+  -- Safe to re-run: skip steps whose payment was already copied.
+  and not exists (select 1 from employee_typing_payments p where p.employee_id = s.employee_id and p.step_key = s.step_key);
 
 -- === Complaints & issues =========================================================
-create table employee_issues (
+create table if not exists employee_issues (
   id uuid primary key default gen_random_uuid(),
   employee_id uuid not null references employees(id) on delete cascade,
   issue_date date not null,
@@ -79,10 +81,10 @@ create table employee_issues (
   created_by uuid references profiles(id),
   created_at timestamptz not null default now()
 );
-create index employee_issues_employee_idx on employee_issues(employee_id, issue_date);
+create index if not exists employee_issues_employee_idx on employee_issues(employee_id, issue_date);
 
 -- === Uniform & accommodation items ===============================================
-create table employee_items (
+create table if not exists employee_items (
   id uuid primary key default gen_random_uuid(),
   employee_id uuid not null references employees(id) on delete cascade,
   item_name text not null,
@@ -95,12 +97,12 @@ create table employee_items (
   created_by uuid references profiles(id),
   created_at timestamptz not null default now()
 );
-create index employee_items_employee_idx on employee_items(employee_id);
+create index if not exists employee_items_employee_idx on employee_items(employee_id);
 
 -- === Monthly attendance, sales & incentives ======================================
 -- restaurant_id is set null if the branch is deleted, so it never blocks
 -- delete_restaurant.
-create table employee_monthly_records (
+create table if not exists employee_monthly_records (
   id uuid primary key default gen_random_uuid(),
   employee_id uuid not null references employees(id) on delete cascade,
   period_month date not null check (extract(day from period_month) = 1),
@@ -123,16 +125,24 @@ alter table employee_issues enable row level security;
 alter table employee_items enable row level security;
 alter table employee_monthly_records enable row level security;
 
+drop policy if exists employee_typing_payments_select on employee_typing_payments;
 create policy employee_typing_payments_select on employee_typing_payments for select using (app.has_permission('employees.view'));
+drop policy if exists employee_typing_payments_write on employee_typing_payments;
 create policy employee_typing_payments_write on employee_typing_payments for all
   using (app.has_permission('employees.manage')) with check (app.has_permission('employees.manage'));
+drop policy if exists employee_issues_select on employee_issues;
 create policy employee_issues_select on employee_issues for select using (app.has_permission('employees.view'));
+drop policy if exists employee_issues_write on employee_issues;
 create policy employee_issues_write on employee_issues for all
   using (app.has_permission('employees.manage')) with check (app.has_permission('employees.manage'));
+drop policy if exists employee_items_select on employee_items;
 create policy employee_items_select on employee_items for select using (app.has_permission('employees.view'));
+drop policy if exists employee_items_write on employee_items;
 create policy employee_items_write on employee_items for all
   using (app.has_permission('employees.manage')) with check (app.has_permission('employees.manage'));
+drop policy if exists employee_monthly_records_select on employee_monthly_records;
 create policy employee_monthly_records_select on employee_monthly_records for select using (app.has_permission('employees.view'));
+drop policy if exists employee_monthly_records_write on employee_monthly_records;
 create policy employee_monthly_records_write on employee_monthly_records for all
   using (app.has_permission('employees.manage')) with check (app.has_permission('employees.manage'));
 

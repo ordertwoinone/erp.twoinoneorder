@@ -7,33 +7,33 @@
 
 -- === Employee columns ============================================================
 alter table employees
-  add column initial_visa_type text check (initial_visa_type in ('visit_visa', 'employment_visa', 'other_sponsor')),
-  add column entry_date date,
-  add column allowed_stay_days integer check (allowed_stay_days >= 0),
-  add column passport_status text
+  add column if not exists initial_visa_type text check (initial_visa_type in ('visit_visa', 'employment_visa', 'other_sponsor')),
+  add column if not exists entry_date date,
+  add column if not exists allowed_stay_days integer check (allowed_stay_days >= 0),
+  add column if not exists passport_status text
     check (passport_status in ('with_employee', 'with_company', 'submitted_for_processing', 'lost', 'other')),
-  add column passport_location text,
-  add column health_insurance_expiry date,
-  add column insurance_applicable boolean not null default false,
-  add column insurance_start_date date,
-  add column insurance_expiry_date date,
-  add column insurance_fine_applicable boolean not null default false,
-  add column insurance_fine_amount numeric(14,2) check (insurance_fine_amount >= 0),
-  add column insurance_status text
+  add column if not exists passport_location text,
+  add column if not exists health_insurance_expiry date,
+  add column if not exists insurance_applicable boolean not null default false,
+  add column if not exists insurance_start_date date,
+  add column if not exists insurance_expiry_date date,
+  add column if not exists insurance_fine_applicable boolean not null default false,
+  add column if not exists insurance_fine_amount numeric(14,2) check (insurance_fine_amount >= 0),
+  add column if not exists insurance_status text
     check (insurance_status in ('pending_verification', 'active', 'expired', 'cancelled', 'not_applicable')),
-  add column visit_visa_source text check (visit_visa_source in ('company_arranged', 'self_arranged', 'agency')),
-  add column visit_visa_support text check (visit_visa_support in ('recoverable_loan', 'company_paid', 'employee_paid')),
-  add column visit_visa_cost numeric(14,2) check (visit_visa_cost >= 0),
-  add column visit_visa_loan_amount numeric(14,2) check (visit_visa_loan_amount >= 0),
-  add column visit_visa_disbursed_date date,
-  add column visit_visa_repayment_start date,
-  add column visit_visa_monthly_deduction numeric(14,2) check (visit_visa_monthly_deduction >= 0),
-  add column visit_visa_recovered_amount numeric(14,2) check (visit_visa_recovered_amount >= 0);
+  add column if not exists visit_visa_source text check (visit_visa_source in ('company_arranged', 'self_arranged', 'agency')),
+  add column if not exists visit_visa_support text check (visit_visa_support in ('recoverable_loan', 'company_paid', 'employee_paid')),
+  add column if not exists visit_visa_cost numeric(14,2) check (visit_visa_cost >= 0),
+  add column if not exists visit_visa_loan_amount numeric(14,2) check (visit_visa_loan_amount >= 0),
+  add column if not exists visit_visa_disbursed_date date,
+  add column if not exists visit_visa_repayment_start date,
+  add column if not exists visit_visa_monthly_deduction numeric(14,2) check (visit_visa_monthly_deduction >= 0),
+  add column if not exists visit_visa_recovered_amount numeric(14,2) check (visit_visa_recovered_amount >= 0);
 
 -- === Visa journey steps ==========================================================
 -- One row per step the employee has any data for; the step list itself lives
 -- in the app (employeeOptions VISA_STEPS).
-create table employee_visa_steps (
+create table if not exists employee_visa_steps (
   id uuid primary key default gen_random_uuid(),
   employee_id uuid not null references employees(id) on delete cascade,
   step_key text not null,
@@ -54,11 +54,14 @@ create table employee_visa_steps (
   updated_at timestamptz not null default now(),
   unique (employee_id, step_key)
 );
+drop trigger if exists set_updated_at on employee_visa_steps;
 create trigger set_updated_at before update on employee_visa_steps
   for each row execute function app.set_updated_at();
 
 alter table employee_visa_steps enable row level security;
+drop policy if exists employee_visa_steps_select on employee_visa_steps;
 create policy employee_visa_steps_select on employee_visa_steps for select using (app.has_permission('employees.view'));
+drop policy if exists employee_visa_steps_write on employee_visa_steps;
 create policy employee_visa_steps_write on employee_visa_steps for all
   using (app.has_permission('employees.manage')) with check (app.has_permission('employees.manage'));
 
