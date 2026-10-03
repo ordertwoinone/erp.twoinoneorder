@@ -1925,6 +1925,10 @@ export interface Database {
         }
         Returns: string
       }
+      quick_create_brand: {
+        Args: { p_name: string }
+        Returns: string
+      }
       get_previous_purchase_prices: {
         Args: { p_restaurant_id: string; p_supplier_id: string; p_product_ids: string[]; p_exclude_purchase_id?: string | null }
         Returns: {

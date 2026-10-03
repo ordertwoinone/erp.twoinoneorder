@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useBrandsOptions, useUnitsOptions } from '@/hooks/useCatalogOptions'
 import { useQuickCreateProduct } from '@/modules/suppliers/hooks/usePriceLocks'
+import { BrandPicker } from './BrandPicker'
 
 interface AddNewItemDialogProps {
   open: boolean
@@ -71,18 +72,7 @@ export function AddNewItemDialog({ open, onOpenChange, initialName, onCreated }:
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Brand</Label>
-              <Select value={brandId} onValueChange={setBrandId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Optional" />
-                </SelectTrigger>
-                <SelectContent>
-                  {brands?.map((b) => (
-                    <SelectItem key={b.id} value={b.id}>
-                      {b.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <BrandPicker value={brandId} onChange={setBrandId} />
             </div>
             <div className="space-y-2">
               <Label>Unit *</Label>

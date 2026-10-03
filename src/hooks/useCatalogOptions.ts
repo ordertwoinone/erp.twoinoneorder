@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase/client'
 
 export function useProductsOptions() {
@@ -38,6 +39,25 @@ export function useBrandsOptions() {
       if (error) throw error
       return data
     },
+  })
+}
+
+/** Creates a brand (or returns the existing one with the same name) and adds it to the cached brand list. */
+export function useQuickCreateBrand() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (name: string) => {
+      const { data, error } = await supabase.rpc('quick_create_brand', { p_name: name })
+      if (error) throw error
+      return { id: data as string, name: name.trim().replace(/\s+/g, ' ') }
+    },
+    onSuccess: (brand) => {
+      queryClient.setQueryData<{ id: string; name: string }[]>(['catalog', 'brands'], (prev) =>
+        prev?.some((b) => b.id === brand.id) ? prev : [...(prev ?? []), brand].sort((a, b) => a.name.localeCompare(b.name)),
+      )
+      queryClient.invalidateQueries({ queryKey: ['catalog', 'brands'] })
+    },
+    onError: (error: Error) => toast.error('Unable to add brand', { description: error.message }),
   })
 }
 
