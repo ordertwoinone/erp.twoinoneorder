@@ -471,9 +471,9 @@ export default function PurchaseFormPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex flex-col gap-4 2xl:flex-row 2xl:items-start 2xl:justify-between">
         <div>
-          <h1 className="flex items-center gap-3 text-3xl font-bold tracking-tight">
+          <h1 className="flex items-center gap-3 text-3xl font-bold tracking-tight whitespace-nowrap">
             {isEditing ? 'Edit Purchase' : 'New Purchase'}
             <span className="inline-flex items-center gap-1 rounded-md bg-warning/20 px-2 py-0.5 text-xs font-semibold text-warning-foreground">
               <FileText className="size-3.5" /> Draft
@@ -517,7 +517,8 @@ export default function PurchaseFormPage() {
           {/* Invoice details */}
           <section className="rounded-xl border bg-card p-5 shadow-sm">
             <h2 className="mb-4 text-lg font-semibold">Invoice details</h2>
-            <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-[1.1fr_1.4fr_1fr_1fr_0.8fr_auto]">
+            {/* auto-fill: columns follow the space actually available (sidebar + summary panel eat a lot of it) */}
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,12rem),1fr))] items-start gap-4">
               <div className="space-y-1.5">
                 <Label>
                   Restaurant <span className="text-destructive">*</span>
@@ -646,7 +647,7 @@ export default function PurchaseFormPage() {
               </div>
             </div>
 
-            <div className="mt-4 grid grid-cols-1 items-end gap-4 border-t pt-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_0.8fr_0.8fr_auto]">
+            <div className="mt-4 grid grid-cols-[repeat(auto-fill,minmax(min(100%,10rem),1fr))] items-start gap-4 border-t pt-4">
               <div className="space-y-1.5">
                 <Label>Pay mode</Label>
                 <Controller
@@ -737,14 +738,17 @@ export default function PurchaseFormPage() {
                 />
               </div>
 
-              <label className="flex h-10 items-center gap-2 rounded-lg border px-3 text-sm whitespace-nowrap">
-                <Controller
-                  control={control}
-                  name="tax_disabled"
-                  render={({ field }) => <Checkbox checked={field.value} onCheckedChange={(v) => field.onChange(v === true)} />}
-                />
-                Disable tax
-              </label>
+              <div className="space-y-1.5">
+                <Label>Tax</Label>
+                <label className="flex h-10 items-center gap-2 rounded-lg border px-3 text-sm whitespace-nowrap">
+                  <Controller
+                    control={control}
+                    name="tax_disabled"
+                    render={({ field }) => <Checkbox checked={field.value} onCheckedChange={(v) => field.onChange(v === true)} />}
+                  />
+                  Disable tax
+                </label>
+              </div>
             </div>
           </section>
         </div>
