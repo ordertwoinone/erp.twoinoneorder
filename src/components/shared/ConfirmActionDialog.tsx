@@ -24,15 +24,22 @@ export function ConfirmActionDialog({
   confirmLabel = 'Confirm',
   destructive,
   onConfirm,
+  open: controlledOpen,
+  onOpenChange,
 }: {
-  trigger: ReactNode
+  /** Omit when opening the dialog from code via `open` / `onOpenChange`. */
+  trigger?: ReactNode
   title: string
   description: string
   confirmLabel?: string
   destructive?: boolean
   onConfirm: () => Promise<void> | void
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }) {
-  const [open, setOpen] = useState(false)
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false)
+  const open = controlledOpen ?? uncontrolledOpen
+  const setOpen = (next: boolean) => (onOpenChange ? onOpenChange(next) : setUncontrolledOpen(next))
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   async function handleConfirm() {
@@ -47,7 +54,7 @@ export function ConfirmActionDialog({
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
-      <span onClick={() => setOpen(true)}>{trigger}</span>
+      {trigger && <span onClick={() => setOpen(true)}>{trigger}</span>}
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>

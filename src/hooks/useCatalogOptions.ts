@@ -8,7 +8,7 @@ export function useProductsOptions() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('products')
-        .select('id, sku, name, base_unit_id, pack_size, brands(name), categories(name)')
+        .select('id, sku, barcode, name, base_unit_id, pack_size, brands(name), categories(name)')
         .eq('is_active', true)
         .order('name')
       if (error) throw error
@@ -60,7 +60,7 @@ export function useSuppliersOptions() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('suppliers')
-        .select('id, code, name, payment_terms_days')
+        .select('id, code, name, trn, payment_terms_days')
         .eq('is_active', true)
         .order('name')
       if (error) throw error

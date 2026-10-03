@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Controller, useFieldArray, useForm } from 'react-hook-form'
 import {
   AlertCircle,
   Building2,
   CalendarDays,
+  CheckCircle2,
+  FilePlus2,
   FileText,
   FileUp,
   Loader2,
@@ -18,7 +20,12 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
+import { ConfirmActionDialog } from '@/components/shared/ConfirmActionDialog'
+import { useAuth } from '@/hooks/useAuth'
+import { useExchangeRatesQuery } from '@/hooks/useExchangeRates'
+import { SupplierFormDialog } from '@/modules/suppliers/components/SupplierFormDialog'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -28,21 +35,57 @@ import { supabase } from '@/lib/supabase/client'
 import { useRestaurantsQuery } from '@/hooks/useRestaurantsQuery'
 import { useCategoriesOptions, useProductsOptions, useSuppliersOptions, useUnitsOptions } from '@/hooks/useCatalogOptions'
 import { useRestaurantScope } from '@/hooks/useRestaurantScope'
-import { computeLines, purchaseFormSchema, type PurchaseFormInput, type PurchaseItemInput } from '@/schemas/purchase'
+import {
+  PAYMENT_MODES,
+  PURCHASE_CURRENCIES,
+  computeLines,
+  effectiveBillDiscount,
+  purchaseFormSchema,
+  sumLines,
+  type LineTotals,
+  type PurchaseFormInput,
+  type PurchaseItemInput,
+} from '@/schemas/purchase'
 import { usePurchaseQuery } from '../hooks/usePurchases'
-import { useSavePurchaseDraft, useSubmitPurchaseForApproval } from '../hooks/usePurchaseMutations'
+import { usePostPurchaseNow, useSavePurchaseDraft, useSubmitPurchaseForApproval } from '../hooks/usePurchaseMutations'
+import { usePreviousPrices } from '../hooks/usePreviousPrices'
 import { fetchAgreedPrices, type ItemSearchResult } from '../hooks/useItemSearch'
 import type { TemplateLine, TemplateSource } from '../hooks/usePurchaseTemplates'
 import { ItemSearchCombobox, packText } from '../components/ItemSearchCombobox'
 import { AddNewItemDialog } from '../components/AddNewItemDialog'
 import { InvoiceScanDialog, type ScannedInvoiceResult } from '../components/InvoiceScanDialog'
 import { PurchaseLineItemRow } from '../components/PurchaseLineItemRow'
-import { InvoiceSummaryCard, NotesCard, SupplierQuoteComparison } from '../components/InvoiceSummarySidebar'
+import { InvoiceSummaryCard, NotesCard, OtherExpensesCard, SupplierQuoteComparison } from '../components/InvoiceSummarySidebar'
 import { ImportTemplateDialog } from '../components/ImportTemplateDialog'
 
 const PAYMENT_TERMS = [0, 7, 15, 30, 45, 60, 90]
 const DEFAULT_VAT = 0.05
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024
+
+const today = () => new Date().toISOString().slice(0, 10)
+const EMPTY_LINE: LineTotals = { gross: 0, lineDiscount: 0, billDiscount: 0, discount: 0, net: 0, vat: 0, total: 0, landingCost: null }
+
+function emptyPurchase(restaurantId: string, keep?: Partial<PurchaseFormInput>): PurchaseFormInput {
+  return {
+    restaurant_id: restaurantId,
+    supplier_id: '',
+    invoice_number: '',
+    invoice_date: today(),
+    received_date: today(),
+    payment_mode: 'credit',
+    payment_terms_days: '',
+    po_reference: '',
+    tax_disabled: false,
+    currency_code: 'AED',
+    exchange_rate: 1,
+    invoice_discount: 0,
+    bill_discount_percent: '',
+    notes: '',
+    items: [],
+    expenses: [],
+    ...keep,
+  }
+}
 
 interface RawLine {
   product_id: string
@@ -65,6 +108,11 @@ export default function PurchaseFormPage() {
   const { data: products = [] } = useProductsOptions()
   const saveDraft = useSavePurchaseDraft()
   const submitForApproval = useSubmitPurchaseForApproval()
+  const postNow = usePostPurchaseNow()
+  const { data: exchangeRates = [] } = useExchangeRatesQuery()
+  const { hasPermission } = useAuth()
+  const navigate = useNavigate()
+  const [confirmPost, setConfirmPost] = useState(false)
 
   const [addNewItemOpen, setAddNewItemOpen] = useState(false)
   const [addNewItemName, setAddNewItemName] = useState('')
@@ -78,27 +126,29 @@ export default function PurchaseFormPage() {
 
   const form = useForm<PurchaseFormInput>({
     resolver: zodResolver(purchaseFormSchema),
-    defaultValues: {
-      restaurant_id: selectedRestaurantId ?? '',
-      supplier_id: '',
-      invoice_number: '',
-      invoice_date: new Date().toISOString().slice(0, 10),
-      payment_terms_days: '',
-      invoice_discount: 0,
-      notes: '',
-      items: [],
-    },
+    defaultValues: emptyPurchase(selectedRestaurantId ?? ''),
   })
   const { control, handleSubmit, reset, watch, setValue, getValues, setFocus, formState, register } = form
   const { fields, append, remove } = useFieldArray({ control, name: 'items' })
 
   const items = watch('items')
   const invoiceDiscount = watch('invoice_discount')
+  const billPercent = watch('bill_discount_percent')
+  const taxDisabled = watch('tax_disabled')
+  const currencyCode = watch('currency_code')
+  const exchangeRate = Number(watch('exchange_rate')) || 1
+  const expenses = watch('expenses')
   const restaurantId = watch('restaurant_id') || null
   const supplierId = watch('supplier_id') || null
   const paymentTerms = watch('payment_terms_days')
-  const lines = useMemo(() => computeLines(items, Number(invoiceDiscount) || 0), [items, invoiceDiscount])
+  const paymentMode = watch('payment_mode')
+  const otherExpenses = expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0)
+  const billDiscount = effectiveBillDiscount(items, invoiceDiscount, billPercent)
+  const lines = useMemo(() => computeLines(items, billDiscount, { taxDisabled, otherExpenses }), [items, billDiscount, taxDisabled, otherExpenses])
+  const totals = sumLines(lines, otherExpenses)
   const itemsAboveContract = items.filter((i) => i.agreed_price != null && i.agreed_price > 0 && (Number(i.unit_price) || 0) > i.agreed_price * 1.005)
+  const selectedSupplier = suppliers.find((s) => s.id === supplierId)
+  const { data: previousPrices, isFetching: previousLoading } = usePreviousPrices(restaurantId, supplierId, items.map((i) => i.product_id), id)
 
   const productsById = useMemo(() => new Map(products.map((p) => [p.id, p])), [products])
   const unitsById = useMemo(() => new Map(units.map((u) => [u.id, u])), [units])
@@ -112,9 +162,20 @@ export default function PurchaseFormPage() {
       supplier_id: purchase.supplier_id,
       invoice_number: purchase.invoice_number,
       invoice_date: purchase.invoice_date,
+      received_date: purchase.received_date ?? '',
+      payment_mode: purchase.payment_mode ?? '',
       payment_terms_days: purchase.payment_terms_days ?? '',
-      invoice_discount: existing.items.reduce((s: number, i: any) => s + (Number(i.discount_amount) || 0), 0),
+      po_reference: purchase.po_reference ?? '',
+      tax_disabled: purchase.tax_disabled ?? false,
+      currency_code: purchase.currency_code ?? 'AED',
+      exchange_rate: purchase.exchange_rate ?? 1,
+      // Saved discounts include unit discounts; take those back out to get the bill discount.
+      invoice_discount: Math.round(
+        existing.items.reduce((s: number, i: any) => s + (Number(i.discount_amount) || 0) - (Number(i.unit_discount) || 0) * (Number(i.quantity) || 0), 0) * 100,
+      ) / 100,
+      bill_discount_percent: purchase.bill_discount_percent ?? '',
       notes: purchase.notes ?? '',
+      expenses: (existing.expenses ?? []).map((e: any) => ({ description: e.description, payee: e.payee ?? '', amount: Number(e.amount) })),
       items: existing.items.map((item: any) => {
         const net = item.quantity * item.unit_price - item.discount_amount
         return {
@@ -122,9 +183,14 @@ export default function PurchaseFormPage() {
           unit_id: item.unit_id,
           pack_size: item.pack_size ?? '',
           quantity: item.quantity,
+          foc_quantity: item.foc_quantity ? Number(item.foc_quantity) : '',
           unit_price: item.unit_price,
-          vat_rate: net > 0 && item.tax_amount / net > 0.025 ? 0.05 : 0,
+          foreign_unit_price: item.foreign_unit_price ?? '',
+          unit_discount: item.unit_discount ? Number(item.unit_discount) : '',
+          vat_rate: purchase.tax_disabled ? 0.05 : net > 0 && item.tax_amount / net > 0.025 ? 0.05 : 0,
           product_name: item.products?.name,
+          sku: item.products?.sku ?? null,
+          barcode: item.products?.barcode ?? null,
           brand_name: item.products?.brands?.name ?? undefined,
           pack_label: item.pack_size ? `Pack (${item.pack_size} ${item.units?.code ?? ''})` : undefined,
           size_label: item.pack_size ? `${item.pack_size} ${item.units?.code ?? ''}` : undefined,
@@ -136,6 +202,16 @@ export default function PurchaseFormPage() {
       }),
     })
   }, [existing, reset])
+
+  // Foreign-currency invoice: AED prices follow the rate.
+  useEffect(() => {
+    if (currencyCode === 'AED') return
+    getValues('items').forEach((it, i) => {
+      if (it.foreign_unit_price === '' || it.foreign_unit_price === undefined) return
+      const aed = Math.round(Number(it.foreign_unit_price) * exchangeRate * 100) / 100
+      if (aed !== Number(it.unit_price)) setValue(`items.${i}.unit_price`, aed, { shouldDirty: true })
+    })
+  }, [currencyCode, exchangeRate, getValues, setValue])
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -166,6 +242,8 @@ export default function PurchaseFormPage() {
         unit_price: r.unit_price,
         vat_rate: DEFAULT_VAT,
         product_name: product?.name ?? 'Item',
+        sku: product?.sku ?? null,
+        barcode: product?.barcode ?? null,
         brand_name: product?.brands?.name ?? undefined,
         category_name: product?.categories?.name ?? undefined,
         pack_label: pack ? `Pack (${pack} ${unit?.code ?? ''})` : undefined,
@@ -214,6 +292,8 @@ export default function PurchaseFormPage() {
         unit_price: item.agreed_price ?? item.last_purchase_price ?? 0,
         vat_rate: DEFAULT_VAT,
         product_name: item.name,
+        sku: item.sku,
+        barcode: item.barcode,
         brand_name: item.brand_name ?? undefined,
         category_name: item.category_name ?? undefined,
         pack_label: packText(item),
@@ -252,10 +332,25 @@ export default function PurchaseFormPage() {
     setValue(`items.${index}.agreed_price`, agreed.get(`${line.product_id}|${unitId}`) ?? null)
   }
 
+  function handleCurrencyChange(code: PurchaseFormInput['currency_code']) {
+    setValue('currency_code', code, { shouldDirty: true })
+    const rate = code === 'AED' ? 1 : exchangeRates.find((r) => r.currency_code === code)?.rate_to_aed
+    if (rate) setValue('exchange_rate', rate, { shouldDirty: true })
+    else toast.warning(`No ${code} rate is set`, { description: 'Enter the exchange rate for this invoice.' })
+    if (code === 'AED') getValues('items').forEach((_, i) => setValue(`items.${i}.foreign_unit_price`, ''))
+    else
+      getValues('items').forEach((it, i) => {
+        if (it.foreign_unit_price === '' || it.foreign_unit_price === undefined) {
+          setValue(`items.${i}.foreign_unit_price`, rate ? Math.round((Number(it.unit_price) / rate) * 10000) / 10000 : '')
+        }
+      })
+  }
+
   async function handleSupplierChange(newSupplierId: string) {
     setValue('supplier_id', newSupplierId, { shouldValidate: !!formState.submitCount })
     const supplier = suppliers.find((s) => s.id === newSupplierId)
     setValue('payment_terms_days', supplier ? supplier.payment_terms_days : '')
+    if (supplier && getValues('payment_mode') !== 'cash') setValue('payment_mode', supplier.payment_terms_days > 0 ? 'credit' : 'cash')
     const current = getValues('items').filter((i) => i.product_id)
     if (!newSupplierId || current.length === 0) return
     const agreed = await fetchAgreedPrices(newSupplierId, [...new Set(current.map((i) => i.product_id))]).catch(() => new Map<string, number>())
@@ -335,9 +430,21 @@ export default function PurchaseFormPage() {
     setAttachmentFile(null)
   }
 
-  async function onSaveDraft(values: PurchaseFormInput) {
+  /** Save & New: saves the draft, then starts a fresh invoice for the same restaurant. */
+  async function onSaveAndNew(values: PurchaseFormInput) {
     const purchaseId = await saveDraft.mutateAsync({ values, scanResultId })
     await uploadPendingAttachment(purchaseId)
+    setScanResultId(null)
+    if (isEditing) navigate('/purchases/new')
+    reset(emptyPurchase(values.restaurant_id))
+    requestAnimationFrame(() => searchInputRef.current?.focus())
+  }
+
+  /** Save & Close: saves the draft and returns to the invoice list. */
+  async function onSaveAndClose(values: PurchaseFormInput) {
+    const purchaseId = await saveDraft.mutateAsync({ values, scanResultId })
+    await uploadPendingAttachment(purchaseId)
+    navigate('/purchases')
   }
 
   async function onSubmitForApproval(values: PurchaseFormInput) {
@@ -345,11 +452,17 @@ export default function PurchaseFormPage() {
     await uploadPendingAttachment(purchaseId)
   }
 
+  async function onPost(values: PurchaseFormInput) {
+    const purchaseId = await postNow.mutateAsync({ values, scanResultId }).catch(() => null)
+    if (purchaseId) await uploadPendingAttachment(purchaseId)
+  }
+
   function onInvalid() {
     toast.error('Some fields need attention', { description: 'Check the highlighted fields and line items.' })
   }
 
-  const isBusy = saveDraft.isPending || submitForApproval.isPending
+  const isBusy = saveDraft.isPending || submitForApproval.isPending || postNow.isPending
+  const canPost = hasPermission('purchases.approve') && hasPermission('purchases.post')
   const termOptions = paymentTerms !== '' && paymentTerms !== undefined && !PAYMENT_TERMS.includes(Number(paymentTerms))
     ? [...PAYMENT_TERMS, Number(paymentTerms)].sort((a, b) => a - b)
     : PAYMENT_TERMS
@@ -370,16 +483,34 @@ export default function PurchaseFormPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           <InvoiceScanDialog restaurantId={restaurantId} supplierId={supplierId} onConfirm={handleScanConfirm} />
-          <Button type="button" variant="outline" size="lg" onClick={handleSubmit(onSaveDraft, onInvalid)} disabled={isBusy}>
-            {saveDraft.isPending ? <Loader2 className="animate-spin" /> : <Save />}
-            Save draft
+          <Button type="button" variant="outline" onClick={handleSubmit(onSaveAndNew, onInvalid)} disabled={isBusy} title="Save as draft and start a new invoice">
+            {saveDraft.isPending ? <Loader2 className="animate-spin" /> : <FilePlus2 />}
+            Save &amp; New
           </Button>
-          <Button type="button" size="lg" onClick={handleSubmit(onSubmitForApproval, onInvalid)} disabled={isBusy}>
+          <Button type="button" variant="outline" onClick={handleSubmit(onSaveAndClose, onInvalid)} disabled={isBusy} title="Save as draft and go back to invoices">
+            {saveDraft.isPending ? <Loader2 className="animate-spin" /> : <Save />}
+            Save &amp; Close
+          </Button>
+          <Button type="button" variant={canPost ? 'outline' : 'default'} onClick={handleSubmit(onSubmitForApproval, onInvalid)} disabled={isBusy}>
             {submitForApproval.isPending ? <Loader2 className="animate-spin" /> : <Send />}
             Submit for approval
           </Button>
+          {canPost && (
+            <Button type="button" onClick={handleSubmit(() => setConfirmPost(true), onInvalid)} disabled={isBusy}>
+              {postNow.isPending ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}
+              Post
+            </Button>
+          )}
         </div>
       </div>
+      <ConfirmActionDialog
+        open={confirmPost}
+        onOpenChange={setConfirmPost}
+        title="Post this purchase now?"
+        description={`This saves, approves and posts invoice ${getValues('invoice_number') || ''} in one step: stock is received and the supplier payable is recorded. Posted purchases can't be edited.`}
+        confirmLabel="Post purchase"
+        onConfirm={() => onPost(getValues())}
+      />
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="min-w-0 space-y-5">
@@ -445,6 +576,18 @@ export default function PurchaseFormPage() {
                   )}
                 </div>
                 {errors.supplier_id && <p className="text-xs text-destructive">{errors.supplier_id.message}</p>}
+                <div className="flex items-center justify-between gap-2 text-xs">
+                  <span className="text-muted-foreground">TRN: {selectedSupplier?.trn || 'N/A'}</span>
+                  {hasPermission('suppliers.manage') && (
+                    <SupplierFormDialog
+                      trigger={
+                        <button type="button" className="inline-flex items-center gap-0.5 font-medium text-primary hover:underline">
+                          <Plus className="size-3.5" /> New supplier
+                        </button>
+                      }
+                    />
+                  )}
+                </div>
               </div>
 
               <div className="space-y-1.5">
@@ -467,25 +610,11 @@ export default function PurchaseFormPage() {
               </div>
 
               <div className="space-y-1.5">
-                <Label>Payment terms</Label>
-                <Controller
-                  control={control}
-                  name="payment_terms_days"
-                  render={({ field }) => (
-                    <Select value={field.value === '' || field.value === undefined ? undefined : String(field.value)} onValueChange={(v) => field.onChange(Number(v))}>
-                      <SelectTrigger className="h-10 w-full">
-                        <SelectValue placeholder="Terms" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {termOptions.map((d) => (
-                          <SelectItem key={d} value={String(d)}>
-                            {d === 0 ? 'On receipt' : `${d} days`}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
+                <Label htmlFor="received_date">Received date</Label>
+                <div className="relative">
+                  <CalendarDays className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input id="received_date" type="date" className="h-10 pl-9" {...register('received_date')} />
+                </div>
               </div>
 
               <div className="space-y-1.5">
@@ -516,144 +645,259 @@ export default function PurchaseFormPage() {
                 <p className="w-28 text-center text-[10px] leading-tight text-muted-foreground">PDF, JPG or PNG (Max 10 MB)</p>
               </div>
             </div>
-          </section>
 
-          {/* Items */}
-          <section className="rounded-xl border bg-card p-5 shadow-sm">
-            <h2 className="mb-4 text-lg font-semibold">Items</h2>
-            <div className="flex flex-wrap items-center gap-2">
-              <ItemSearchCombobox
-                ref={searchInputRef}
-                supplierId={supplierId}
-                restaurantId={restaurantId}
-                categoryId={categoryId}
-                onSelect={handleSelectSearchResult}
-                onAddNew={(name) => {
-                  setAddNewItemName(name)
-                  setAddNewItemOpen(true)
-                }}
-              />
-              <Select value={categoryId ?? 'all'} onValueChange={(v) => setCategoryId(v === 'all' ? null : v)}>
-                <SelectTrigger className="h-10 w-40">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  {categories.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {chipCategories.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => setCategoryId((prev) => (prev === c.id ? null : c.id))}
-                  className={cn(
-                    'h-10 rounded-lg border px-3 text-sm transition-colors',
-                    categoryId === c.id ? 'border-primary bg-primary text-primary-foreground' : 'bg-muted/40 hover:bg-muted',
+            <div className="mt-4 grid grid-cols-1 items-end gap-4 border-t pt-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_0.8fr_0.8fr_auto]">
+              <div className="space-y-1.5">
+                <Label>Pay mode</Label>
+                <Controller
+                  control={control}
+                  name="payment_mode"
+                  render={({ field }) => (
+                    <Select
+                      value={field.value || undefined}
+                      onValueChange={(v) => {
+                        field.onChange(v)
+                        if (v !== 'credit') setValue('payment_terms_days', 0)
+                        else if (selectedSupplier) setValue('payment_terms_days', selectedSupplier.payment_terms_days)
+                      }}
+                    >
+                      <SelectTrigger className="h-10 w-full">
+                        <SelectValue placeholder="Pay mode" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PAYMENT_MODES.map((m) => (
+                          <SelectItem key={m.value} value={m.value}>
+                            {m.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   )}
-                >
-                  {c.name}
-                </button>
-              ))}
-              <Button
-                type="button"
-                variant="outline"
-                className="h-10 border-primary text-primary"
-                onClick={() => {
-                  setAddNewItemName('')
-                  setAddNewItemOpen(true)
-                }}
-              >
-                <Plus /> Add new item
-              </Button>
-            </div>
-
-            {itemsAboveContract.length > 0 && (
-              <div className="mt-3 flex items-center gap-2 rounded-lg border border-warning/40 bg-warning/15 px-4 py-2.5 text-sm font-medium text-warning-foreground lg:ml-auto lg:w-fit lg:min-w-md">
-                <AlertCircle className="size-5 shrink-0 fill-warning text-background" />
-                <span className="flex-1">
-                  Price alerts: {itemsAboveContract.length} item{itemsAboveContract.length === 1 ? '' : 's'} above agreed price
-                </span>
-                <button type="button" onClick={viewPriceAlerts} className="underline underline-offset-2 hover:no-underline">
-                  View details
-                </button>
+                />
               </div>
-            )}
 
-            {errors.items?.message && <p className="mt-3 text-sm text-destructive">{errors.items.message}</p>}
-
-            <div className="mt-4 overflow-x-auto rounded-lg border">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/40 text-xs">
-                    <TableHead className="w-8">#</TableHead>
-                    <TableHead>Item</TableHead>
-                    <TableHead>Brand &amp; pack</TableHead>
-                    <TableHead>Qty</TableHead>
-                    <TableHead>Unit</TableHead>
-                    <TableHead className="leading-tight">Contract price<br />(AED)</TableHead>
-                    <TableHead className="leading-tight">Invoice price<br />(AED)</TableHead>
-                    <TableHead>Variance</TableHead>
-                    <TableHead>VAT</TableHead>
-                    <TableHead className="text-right leading-tight">Line total<br />(AED)</TableHead>
-                    <TableHead className="w-10" />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {fields.length === 0 ? (
-                    <TableRow>
-                      <TableHead colSpan={11} className="h-20 text-center font-normal text-muted-foreground">
-                        {supplierId && restaurantId
-                          ? 'Search above to add items, add one manually, or import from a template.'
-                          : 'Select the restaurant and supplier, then add items.'}
-                      </TableHead>
-                    </TableRow>
-                  ) : (
-                    fields.map((field, index) => (
-                      <PurchaseLineItemRow
-                        key={field.id}
-                        index={index}
-                        form={form}
-                        line={lines[index] ?? { gross: 0, discount: 0, vat: 0, total: 0 }}
-                        units={units}
-                        products={products}
-                        onPickProduct={handlePickProduct}
-                        onUnitChange={handleUnitChange}
-                        onRemove={() => remove(index)}
-                      />
-                    ))
+              <div className="space-y-1.5">
+                <Label>Payment terms</Label>
+                <Controller
+                  control={control}
+                  name="payment_terms_days"
+                  render={({ field }) => (
+                    <Select
+                      value={field.value === '' || field.value === undefined ? undefined : String(field.value)}
+                      onValueChange={(v) => field.onChange(Number(v))}
+                      disabled={paymentMode !== 'credit'}
+                    >
+                      <SelectTrigger className="h-10 w-full">
+                        <SelectValue placeholder="Terms" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {termOptions.map((d) => (
+                          <SelectItem key={d} value={String(d)}>
+                            {d === 0 ? 'On receipt' : `${d} days`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   )}
-                </TableBody>
-              </Table>
-            </div>
+                />
+              </div>
 
-            <div className="mt-4 flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                className="border-primary/40 bg-primary/5 text-primary"
-                onClick={() => {
-                  append({ product_id: '', unit_id: '', pack_size: '', quantity: 1, unit_price: 0, vat_rate: DEFAULT_VAT, agreed_price: null, last_purchase_price: null })
-                }}
-              >
-                <Plus /> Add item manually
-              </Button>
-              <Button type="button" variant="outline" onClick={() => setTemplateOpen(true)}>
-                <FileText /> Import from template
-              </Button>
+              <div className="space-y-1.5">
+                <Label htmlFor="po_reference">PO no.</Label>
+                <Input id="po_reference" className="h-10" placeholder="Supplier / internal PO" {...register('po_reference')} />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Currency</Label>
+                <Select value={currencyCode} onValueChange={(v) => handleCurrencyChange(v as PurchaseFormInput['currency_code'])}>
+                  <SelectTrigger className="h-10 w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PURCHASE_CURRENCIES.map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {c}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="exchange_rate">Rate to AED</Label>
+                <Input
+                  id="exchange_rate"
+                  type="number"
+                  step="0.000001"
+                  min="0"
+                  className="h-10"
+                  disabled={currencyCode === 'AED'}
+                  aria-invalid={!!errors.exchange_rate}
+                  {...register('exchange_rate')}
+                />
+              </div>
+
+              <label className="flex h-10 items-center gap-2 rounded-lg border px-3 text-sm whitespace-nowrap">
+                <Controller
+                  control={control}
+                  name="tax_disabled"
+                  render={({ field }) => <Checkbox checked={field.value} onCheckedChange={(v) => field.onChange(v === true)} />}
+                />
+                Disable tax
+              </label>
             </div>
           </section>
         </div>
 
         <aside className="space-y-5">
-          <InvoiceSummaryCard form={form} lines={lines} />
-          <SupplierQuoteComparison ref={comparisonRef} form={form} highlighted={highlightComparison} />
-          <NotesCard form={form} />
+          <InvoiceSummaryCard form={form} totals={totals} />
         </aside>
+      </div>
+
+      {/* Items — full width so every column fits */}
+      <section className="rounded-xl border bg-card p-5 shadow-sm">
+        <h2 className="mb-4 text-lg font-semibold">Items</h2>
+        <div className="flex flex-wrap items-center gap-2">
+          <ItemSearchCombobox
+            ref={searchInputRef}
+            supplierId={supplierId}
+            restaurantId={restaurantId}
+            categoryId={categoryId}
+            onSelect={handleSelectSearchResult}
+            onAddNew={(name) => {
+              setAddNewItemName(name)
+              setAddNewItemOpen(true)
+            }}
+          />
+          <Select value={categoryId ?? 'all'} onValueChange={(v) => setCategoryId(v === 'all' ? null : v)}>
+            <SelectTrigger className="h-10 w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {categories.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {chipCategories.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => setCategoryId((prev) => (prev === c.id ? null : c.id))}
+              className={cn(
+                'h-10 rounded-lg border px-3 text-sm transition-colors',
+                categoryId === c.id ? 'border-primary bg-primary text-primary-foreground' : 'bg-muted/40 hover:bg-muted',
+              )}
+            >
+              {c.name}
+            </button>
+          ))}
+          <Button
+            type="button"
+            variant="outline"
+            className="h-10 border-primary text-primary"
+            onClick={() => {
+              setAddNewItemName('')
+              setAddNewItemOpen(true)
+            }}
+          >
+            <Plus /> Add new item
+          </Button>
+        </div>
+
+        {itemsAboveContract.length > 0 && (
+          <div className="mt-3 flex items-center gap-2 rounded-lg border border-warning/40 bg-warning/15 px-4 py-2.5 text-sm font-medium text-warning-foreground lg:ml-auto lg:w-fit lg:min-w-md">
+            <AlertCircle className="size-5 shrink-0 fill-warning text-background" />
+            <span className="flex-1">
+              Price alerts: {itemsAboveContract.length} item{itemsAboveContract.length === 1 ? '' : 's'} above agreed price
+            </span>
+            <button type="button" onClick={viewPriceAlerts} className="underline underline-offset-2 hover:no-underline">
+              View details
+            </button>
+          </div>
+        )}
+
+        {errors.items?.message && <p className="mt-3 text-sm text-destructive">{errors.items.message}</p>}
+
+        <div className="mt-4 overflow-x-auto rounded-lg border">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/40 text-xs">
+                <TableHead className="w-8">#</TableHead>
+                <TableHead>Item / code</TableHead>
+                <TableHead>Brand &amp; pack</TableHead>
+                <TableHead>Qty</TableHead>
+                <TableHead title="Free of charge">FOC</TableHead>
+                <TableHead>Unit</TableHead>
+                {currencyCode !== 'AED' && <TableHead className="leading-tight">Price<br />({currencyCode})</TableHead>}
+                <TableHead className="leading-tight">Price<br />(AED)</TableHead>
+                <TableHead className="leading-tight">Previous<br />price</TableHead>
+                <TableHead className="leading-tight">Contract<br />price</TableHead>
+                <TableHead className="leading-tight">Unit<br />disc.</TableHead>
+                <TableHead>VAT</TableHead>
+                <TableHead className="text-right">Amount</TableHead>
+                <TableHead className="text-right leading-tight">Line total<br />(AED)</TableHead>
+                <TableHead className="text-right leading-tight">Landing<br />cost</TableHead>
+                <TableHead className="w-10" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {fields.length === 0 ? (
+                <TableRow>
+                  <TableHead colSpan={17} className="h-20 text-center font-normal text-muted-foreground">
+                    {supplierId && restaurantId
+                      ? 'Search above to add items, add one manually, or import from a template.'
+                      : 'Select the restaurant and supplier, then add items.'}
+                  </TableHead>
+                </TableRow>
+              ) : (
+                fields.map((field, index) => (
+                  <PurchaseLineItemRow
+                    key={field.id}
+                    index={index}
+                    form={form}
+                    line={lines[index] ?? EMPTY_LINE}
+                    units={units}
+                    products={products}
+                    previous={previousPrices?.get(items[index]?.product_id)}
+                    previousLoading={previousLoading}
+                    currencyCode={currencyCode}
+                    exchangeRate={exchangeRate}
+                    taxDisabled={taxDisabled}
+                    onPickProduct={handlePickProduct}
+                    onUnitChange={handleUnitChange}
+                    onRemove={() => remove(index)}
+                  />
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="border-primary/40 bg-primary/5 text-primary"
+            onClick={() => {
+              append({ product_id: '', unit_id: '', pack_size: '', quantity: 1, foc_quantity: '', unit_price: 0, unit_discount: '', vat_rate: DEFAULT_VAT, agreed_price: null, last_purchase_price: null })
+            }}
+          >
+            <Plus /> Add item manually
+          </Button>
+          <Button type="button" variant="outline" onClick={() => setTemplateOpen(true)}>
+            <FileText /> Import from template
+          </Button>
+        </div>
+      </section>
+
+      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-3">
+        <OtherExpensesCard form={form} />
+        <SupplierQuoteComparison ref={comparisonRef} form={form} highlighted={highlightComparison} />
+        <NotesCard form={form} />
       </div>
 
       <AddNewItemDialog open={addNewItemOpen} onOpenChange={setAddNewItemOpen} initialName={addNewItemName} onCreated={handleItemCreated} />

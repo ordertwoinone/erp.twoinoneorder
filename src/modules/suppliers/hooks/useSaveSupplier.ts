@@ -51,6 +51,7 @@ export function useSaveSupplier() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['suppliers'] })
+      queryClient.invalidateQueries({ queryKey: ['catalog', 'suppliers-options'] })
       toast.success('Supplier saved')
     },
     onError: (error: Error) => {

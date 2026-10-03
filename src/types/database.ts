@@ -310,6 +310,14 @@ export interface Database {
           approved_by: string | null
           approved_at: string | null
           posted_at: string | null
+          received_date: string | null
+          payment_mode: 'cash' | 'credit' | 'card' | 'bank_transfer' | 'cheque' | null
+          po_reference: string | null
+          tax_disabled: boolean
+          currency_code: 'AED' | 'USD' | 'EUR' | 'INR' | 'EGP'
+          exchange_rate: number
+          bill_discount_percent: number | null
+          other_expenses_amount: number
           created_at: string
           updated_at: string
         }
@@ -350,6 +358,10 @@ export interface Database {
           tax_amount: number
           line_total: number
           agreed_price_at_entry: number | null
+          foc_quantity: number
+          unit_discount: number
+          foreign_unit_price: number | null
+          landing_cost: number | null
           created_at: string
         }
         Insert: Partial<Database['public']['Tables']['purchase_items']['Row']> & {
@@ -377,6 +389,19 @@ export interface Database {
             referencedColumns: ['id']
           },
         ]
+      }
+      purchase_expenses: {
+        Row: {
+          id: string
+          purchase_id: string
+          description: string
+          payee: string | null
+          amount: number
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['purchase_expenses']['Row']> & { purchase_id: string; description: string; amount: number }
+        Update: Partial<Database['public']['Tables']['purchase_expenses']['Row']>
+        Relationships: []
       }
       purchase_orders: {
         Row: {
@@ -1899,6 +1924,20 @@ export interface Database {
           p_barcode?: string | null
         }
         Returns: string
+      }
+      get_previous_purchase_prices: {
+        Args: { p_restaurant_id: string; p_supplier_id: string; p_product_ids: string[]; p_exclude_purchase_id?: string | null }
+        Returns: {
+          product_id: string
+          supplier_price: number | null
+          supplier_unit_code: string | null
+          supplier_date: string | null
+          supplier_quantity: number | null
+          any_price: number | null
+          any_unit_code: string | null
+          any_date: string | null
+          any_supplier_name: string | null
+        }[]
       }
       search_items_for_purchase: {
         Args: { p_supplier_id: string; p_restaurant_id: string; p_search: string | null; p_limit?: number; p_category_id?: string | null }

@@ -1,64 +1,109 @@
-import { forwardRef, useState } from 'react'
+import { forwardRef } from 'react'
 import type { UseFormReturn } from 'react-hook-form'
-import { AlertCircle, ArrowUp, BarChart3, NotebookPen, Percent } from 'lucide-react'
+import { useFieldArray } from 'react-hook-form'
+import { AlertCircle, ArrowUp, BarChart3, NotebookPen, Percent, Plus, Receipt, X } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/utils/format'
-import type { LineTotals, PurchaseFormInput } from '@/schemas/purchase'
+import type { InvoiceTotals, PurchaseFormInput } from '@/schemas/purchase'
 
 const money = (n: number) => n.toLocaleString('en-AE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
-export function InvoiceSummaryCard({ form, lines }: { form: UseFormReturn<PurchaseFormInput>; lines: LineTotals[] }) {
-  const [editingDiscount, setEditingDiscount] = useState(false)
-  const items = form.watch('items')
-  const subtotal = lines.reduce((s, l) => s + l.gross, 0)
-  const discount = lines.reduce((s, l) => s + l.discount, 0)
-  const vat = lines.reduce((s, l) => s + l.vat, 0)
-  const total = lines.reduce((s, l) => s + l.total, 0)
+export function InvoiceSummaryCard({ form, totals }: { form: UseFormReturn<PurchaseFormInput>; totals: InvoiceTotals }) {
+  const { register, watch, setValue, formState } = form
+  const items = watch('items')
+  const percent = watch('bill_discount_percent')
+  const currency = watch('currency_code')
+  const rate = Number(watch('exchange_rate')) || 1
+  const taxDisabled = watch('tax_disabled')
+  const usePercent = percent !== '' && percent !== undefined
   const allStandardRated = items.length > 0 && items.every((i) => Number(i.vat_rate) === 0.05)
+  const discount = totals.lineDiscount + totals.billDiscount
 
   return (
     <section className="rounded-xl border bg-card p-5 shadow-sm">
       <h2 className="mb-4 text-lg font-semibold">Invoice summary</h2>
-      <dl className="space-y-3 text-sm">
-        <div className="flex justify-between">
-          <dt className="text-muted-foreground">Subtotal</dt>
-          <dd className="font-semibold tabular-nums">{formatCurrency(subtotal)}</dd>
-        </div>
-        <div className="flex justify-between">
-          <dt className="text-muted-foreground">VAT{allStandardRated ? ' (5%)' : ''}</dt>
-          <dd className="tabular-nums">{formatCurrency(vat)}</dd>
-        </div>
-        <div className="flex items-center justify-between">
-          <dt className="flex items-center gap-2 text-muted-foreground">
-            <span className="flex size-6 items-center justify-center rounded border">
-              <Percent className="size-3.5" />
-            </span>
-            Discount
-          </dt>
-          <dd>
-            {editingDiscount ? (
-              <Input
-                type="number"
-                step="0.01"
-                min="0"
-                autoFocus
-                className="h-8 w-28 text-right tabular-nums"
-                {...form.register('invoice_discount', { onBlur: () => setEditingDiscount(false) })}
-              />
+
+      <div className="mb-4 rounded-lg border bg-muted/20 p-3">
+        <p className="mb-2 flex items-center gap-2 text-sm font-medium">
+          <Percent className="size-4 text-primary" /> Apply bill discount
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="space-y-1 text-xs text-muted-foreground">
+            Discount (%)
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              max="100"
+              placeholder="0"
+              className="h-8 text-right tabular-nums"
+              {...register('bill_discount_percent')}
+            />
+          </label>
+          <label className="space-y-1 text-xs text-muted-foreground">
+            Discount amount
+            {usePercent ? (
+              <Input key="computed" className="h-8 text-right tabular-nums" value={totals.billDiscount.toFixed(2)} disabled readOnly />
             ) : (
-              <button type="button" className="tabular-nums hover:text-primary hover:underline" onClick={() => setEditingDiscount(true)}>
-                {formatCurrency(discount)}
-              </button>
+              <Input key="amount" type="number" step="0.01" min="0" className="h-8 text-right tabular-nums" {...register('invoice_discount')} />
             )}
-          </dd>
+          </label>
         </div>
-        {form.formState.errors.invoice_discount && <p className="text-xs text-destructive">{form.formState.errors.invoice_discount.message}</p>}
-        <div className="flex items-baseline justify-between border-t pt-4">
-          <dt className="text-base font-semibold">Grand total</dt>
-          <dd className="text-2xl font-bold tabular-nums">{formatCurrency(total)}</dd>
+        {usePercent && (
+          <button type="button" className="mt-1.5 text-xs text-primary hover:underline" onClick={() => setValue('bill_discount_percent', '', { shouldDirty: true })}>
+            Use an amount instead
+          </button>
+        )}
+        {(formState.errors.invoice_discount || formState.errors.bill_discount_percent) && (
+          <p className="mt-1 text-xs text-destructive">{formState.errors.invoice_discount?.message ?? formState.errors.bill_discount_percent?.message}</p>
+        )}
+      </div>
+
+      <dl className="space-y-2.5 text-sm">
+        <div className="flex justify-between">
+          <dt className="text-muted-foreground">Total</dt>
+          <dd className="tabular-nums">{formatCurrency(totals.gross)}</dd>
         </div>
+        <div className="flex justify-between">
+          <dt className="text-muted-foreground">
+            Discount
+            {totals.lineDiscount > 0 && totals.billDiscount > 0 && (
+              <span className="block text-[11px]">
+                items {money(totals.lineDiscount)} + bill {money(totals.billDiscount)}
+              </span>
+            )}
+          </dt>
+          <dd className="tabular-nums">{discount ? `−${formatCurrency(discount)}` : formatCurrency(0)}</dd>
+        </div>
+        <div className="flex justify-between">
+          <dt className="text-muted-foreground">Sub total</dt>
+          <dd className="font-semibold tabular-nums">{formatCurrency(totals.net)}</dd>
+        </div>
+        <div className="flex justify-between">
+          <dt className="text-muted-foreground">{taxDisabled ? 'Tax (disabled)' : `Tax${allStandardRated ? ' (5%)' : ''}`}</dt>
+          <dd className="tabular-nums">{formatCurrency(totals.vat)}</dd>
+        </div>
+        <div className="flex items-baseline justify-between border-t pt-3">
+          <dt className="text-base font-semibold">Net total</dt>
+          <dd className="text-2xl font-bold tabular-nums">{formatCurrency(totals.total)}</dd>
+        </div>
+        {currency !== 'AED' && (
+          <div className="flex justify-between text-xs text-muted-foreground">
+            <dt>In {currency} (rate {rate})</dt>
+            <dd className="tabular-nums">
+              {currency} {money(totals.total / rate)}
+            </dd>
+          </div>
+        )}
+        {totals.expenses > 0 && (
+          <div className="flex justify-between rounded-md bg-muted/40 px-2 py-1.5 text-xs">
+            <dt className="text-muted-foreground">+ Other expenses (landing cost only)</dt>
+            <dd className="tabular-nums">{formatCurrency(totals.expenses)}</dd>
+          </div>
+        )}
       </dl>
 
       <div className="mt-5 flex gap-3 rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm">
@@ -127,6 +172,52 @@ export const SupplierQuoteComparison = forwardRef<HTMLElement, { form: UseFormRe
     )
   },
 )
+
+/** Freight, customs, clearing… paid to others; spread into each item's landing cost by value. */
+export function OtherExpensesCard({ form }: { form: UseFormReturn<PurchaseFormInput> }) {
+  const { control, register, watch, formState } = form
+  const { fields, append, remove } = useFieldArray({ control, name: 'expenses' })
+  const expenses = watch('expenses')
+  const total = expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0)
+
+  return (
+    <section className="rounded-xl border bg-card p-5 shadow-sm">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="flex items-center gap-2 text-lg font-semibold">
+          <Receipt className="size-5 text-primary" /> Other related expenses
+        </h2>
+        <Button type="button" variant="outline" size="sm" onClick={() => append({ description: '', payee: '', amount: '' })}>
+          <Plus /> Add
+        </Button>
+      </div>
+      {fields.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Freight, customs, clearing or delivery charges paid to others. Added to the items' landing cost, not to the supplier's bill.</p>
+      ) : (
+        <div className="space-y-2">
+          {fields.map((f, i) => {
+            const err = formState.errors.expenses?.[i]
+            return (
+              <div key={f.id} className="grid grid-cols-[1fr_6rem_auto] items-start gap-2">
+                <div className="space-y-1">
+                  <Input className="h-8 text-sm" placeholder="e.g. Freight" aria-invalid={!!err?.description} {...register(`expenses.${i}.description`)} />
+                  <Input className="h-7 text-xs" placeholder="Paid to (optional)" {...register(`expenses.${i}.payee`)} />
+                </div>
+                <Input type="number" step="0.01" min="0" className="h-8 text-right text-sm tabular-nums" placeholder="0.00" aria-invalid={!!err?.amount} {...register(`expenses.${i}.amount`)} />
+                <button type="button" onClick={() => remove(i)} className="mt-2 text-muted-foreground hover:text-destructive" aria-label="Remove expense">
+                  <X className="size-4" />
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      )}
+      <div className="mt-3 flex justify-between border-t pt-2 text-sm">
+        <span className="text-muted-foreground">Expense total</span>
+        <span className="font-semibold tabular-nums">{formatCurrency(total)}</span>
+      </div>
+    </section>
+  )
+}
 
 export function NotesCard({ form }: { form: UseFormReturn<PurchaseFormInput> }) {
   return (

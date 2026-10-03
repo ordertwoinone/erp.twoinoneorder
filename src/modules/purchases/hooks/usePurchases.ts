@@ -56,11 +56,11 @@ export function usePurchaseQuery(id: string | undefined) {
     queryKey: ['purchases', 'detail', id],
     enabled: !!id,
     queryFn: async () => {
-      const [purchaseRes, itemsRes, approvalsRes] = await Promise.all([
+      const [purchaseRes, itemsRes, approvalsRes, expensesRes] = await Promise.all([
         supabase.from('purchases').select('*, restaurants(name), suppliers(name)').eq('id', id!).single(),
         supabase
           .from('purchase_items')
-          .select('*, products(name, sku, brands(name)), units(name, code)')
+          .select('*, products(name, sku, barcode, brands(name)), units(name, code)')
           .eq('purchase_id', id!),
         supabase
           .from('approvals')
@@ -68,12 +68,14 @@ export function usePurchaseQuery(id: string | undefined) {
           .eq('entity_type', 'purchase')
           .eq('entity_id', id!)
           .order('created_at', { ascending: false }),
+        supabase.from('purchase_expenses').select('*').eq('purchase_id', id!).order('created_at'),
       ])
       if (purchaseRes.error) throw purchaseRes.error
       if (itemsRes.error) throw itemsRes.error
       if (approvalsRes.error) throw approvalsRes.error
+      if (expensesRes.error) throw expensesRes.error
 
-      return { purchase: purchaseRes.data, items: itemsRes.data, approvals: approvalsRes.data }
+      return { purchase: purchaseRes.data, items: itemsRes.data, approvals: approvalsRes.data, expenses: expensesRes.data }
     },
   })
 }

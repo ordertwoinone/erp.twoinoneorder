@@ -25,7 +25,8 @@ export default function PurchaseDetailPage() {
 
   if (isLoading || !data) return <FullScreenSpinner />
 
-  const { purchase, items, approvals } = data
+  const { purchase, items, approvals, expenses } = data
+  const PAY_MODE_LABELS: Record<string, string> = { cash: 'Cash', credit: 'Credit', card: 'Card', bank_transfer: 'Bank transfer', cheque: 'Cheque' }
   const canCreate = hasPermission('purchases.create')
   const canApprove = hasPermission('purchases.approve')
   const canPost = hasPermission('purchases.post')
@@ -75,12 +76,14 @@ export default function PurchaseDetailPage() {
                     <TableHead>Product</TableHead>
                     <TableHead>Unit</TableHead>
                     <TableHead className="text-right">Qty</TableHead>
+                    <TableHead className="text-right">FOC</TableHead>
                     <TableHead className="text-right">Agreed Price</TableHead>
                     <TableHead className="text-right">Unit Price</TableHead>
                     <TableHead className="text-right">Variance</TableHead>
                     <TableHead className="text-right">Discount</TableHead>
                     <TableHead className="text-right">Tax</TableHead>
                     <TableHead className="text-right">Total</TableHead>
+                    <TableHead className="text-right">Landing cost</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -98,6 +101,7 @@ export default function PurchaseDetailPage() {
                         </TableCell>
                         <TableCell>{item.units?.code}</TableCell>
                         <TableCell className="text-right tabular-nums">{item.quantity}</TableCell>
+                        <TableCell className="text-right tabular-nums text-muted-foreground">{Number(item.foc_quantity) || '—'}</TableCell>
                         <TableCell className="text-right tabular-nums text-muted-foreground">
                           {agreed !== null ? formatCurrency(agreed) : 'No contract'}
                         </TableCell>
@@ -115,6 +119,9 @@ export default function PurchaseDetailPage() {
                         <TableCell className="text-right tabular-nums">{formatCurrency(item.tax_amount)}</TableCell>
                         <TableCell className="text-right font-medium tabular-nums">
                           {formatCurrency(item.line_total)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums text-muted-foreground">
+                          {item.landing_cost != null ? Number(item.landing_cost).toFixed(2) : '—'}
                         </TableCell>
                       </TableRow>
                     )
@@ -135,10 +142,30 @@ export default function PurchaseDetailPage() {
                   <span className="tabular-nums">{formatCurrency(purchase.tax_amount)}</span>
                 </div>
                 <div className="flex justify-between border-t pt-1 text-base font-semibold">
-                  <span>Total</span>
+                  <span>Net total</span>
                   <span className="tabular-nums">{formatCurrency(purchase.total_amount)}</span>
                 </div>
+                {Number(purchase.other_expenses_amount) > 0 && (
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Other expenses (landing cost)</span>
+                    <span className="tabular-nums">{formatCurrency(purchase.other_expenses_amount)}</span>
+                  </div>
+                )}
               </div>
+              {expenses.length > 0 && (
+                <div className="mt-4 rounded-md border p-3 text-sm">
+                  <p className="mb-2 font-medium">Other related expenses</p>
+                  {expenses.map((e) => (
+                    <div key={e.id} className="flex justify-between gap-4">
+                      <span className="text-muted-foreground">
+                        {e.description}
+                        {e.payee ? ` · ${e.payee}` : ''}
+                      </span>
+                      <span className="tabular-nums">{formatCurrency(e.amount)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -175,6 +202,13 @@ export default function PurchaseDetailPage() {
             <CardContent className="space-y-2 text-sm">
               <Row label="Invoice #" value={purchase.invoice_number} />
               <Row label="Invoice date" value={formatDate(purchase.invoice_date)} />
+              {purchase.received_date && <Row label="Received date" value={formatDate(purchase.received_date)} />}
+              {purchase.payment_mode && <Row label="Pay mode" value={PAY_MODE_LABELS[purchase.payment_mode] ?? purchase.payment_mode} />}
+              {purchase.po_reference && <Row label="PO no." value={purchase.po_reference} />}
+              {purchase.currency_code && purchase.currency_code !== 'AED' && (
+                <Row label="Currency" value={`${purchase.currency_code} @ ${purchase.exchange_rate}`} />
+              )}
+              {purchase.tax_disabled && <Row label="Tax" value="Disabled" />}
               {purchase.payment_terms_days != null && (
                 <Row label="Payment terms" value={purchase.payment_terms_days === 0 ? 'On receipt' : `${purchase.payment_terms_days} days`} />
               )}
