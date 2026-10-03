@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ComponentProps } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Controller, useFieldArray, useForm } from 'react-hook-form'
@@ -357,16 +357,21 @@ export default function PurchaseFormPage() {
     getValues('items').forEach((it, i) => setValue(`items.${i}.agreed_price`, agreed.get(`${it.product_id}|${it.unit_id}`) ?? null))
   }
 
-  function handleItemCreated(product: { id: string; name: string; baseUnitId: string; baseUnitCode: string; brandName: string | null }) {
+  function handleItemCreated(product: Parameters<ComponentProps<typeof AddNewItemDialog>['onCreated']>[0]) {
+    const rate = Number(getValues('exchange_rate')) || 1
     mergeLines([
       {
         product_id: product.id,
         unit_id: product.baseUnitId,
         pack_size: '',
-        quantity: 1,
-        unit_price: 0,
+        quantity: product.quantity,
+        unit_price: product.unitPrice,
+        // Foreign-currency invoice: keep the invoice-currency price in step with the AED one.
+        foreign_unit_price: getValues('currency_code') === 'AED' ? '' : Math.round((product.unitPrice / rate) * 10000) / 10000,
         vat_rate: DEFAULT_VAT,
         product_name: product.name,
+        sku: product.sku,
+        barcode: product.barcode,
         brand_name: product.brandName ?? undefined,
         unit_code: product.baseUnitCode,
         size_label: product.baseUnitCode,

@@ -13,7 +13,17 @@ interface AddNewItemDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   initialName: string
-  onCreated: (product: { id: string; name: string; baseUnitId: string; baseUnitCode: string; brandName: string | null }) => void
+  onCreated: (product: {
+    id: string
+    name: string
+    baseUnitId: string
+    baseUnitCode: string
+    brandName: string | null
+    sku: string | null
+    barcode: string | null
+    quantity: number
+    unitPrice: number
+  }) => void
 }
 
 export function AddNewItemDialog({ open, onOpenChange, initialName, onCreated }: AddNewItemDialogProps) {
@@ -22,6 +32,8 @@ export function AddNewItemDialog({ open, onOpenChange, initialName, onCreated }:
   const [barcode, setBarcode] = useState('')
   const [brandId, setBrandId] = useState('')
   const [unitId, setUnitId] = useState('')
+  const [quantity, setQuantity] = useState('1')
+  const [unitPrice, setUnitPrice] = useState('')
 
   const { data: units } = useUnitsOptions()
   const { data: brands } = useBrandsOptions()
@@ -34,15 +46,28 @@ export function AddNewItemDialog({ open, onOpenChange, initialName, onCreated }:
       setBarcode('')
       setBrandId('')
       setUnitId('')
+      setQuantity('1')
+      setUnitPrice('')
     }
   }, [open, initialName])
 
+  const qty = Number(quantity)
+  const price = unitPrice === '' ? 0 : Number(unitPrice)
+  const qtyValid = Number.isFinite(qty) && qty > 0
+  const priceValid = Number.isFinite(price) && price >= 0
+  const canCreate = !!name.trim() && !!unitId && qtyValid && priceValid
+
   async function handleCreate() {
-    if (!name.trim() || !unitId) return
+    if (!canCreate) return
     const productId = await quickCreate.mutateAsync({ name: name.trim(), baseUnitId: unitId, sku, brandId, barcode })
     const unit = units?.find((u) => u.id === unitId)
     const brand = brands?.find((b) => b.id === brandId)
-    onCreated({ id: productId, name: name.trim(), baseUnitId: unitId, baseUnitCode: unit?.code ?? '', brandName: brand?.name ?? null })
+    onCreated({ id: productId, name: name.trim(), baseUnitId: unitId, baseUnitCode: unit?.code ?? '', brandName: brand?.name ?? null,
+      sku: sku.trim() || null,
+      barcode: barcode.trim() || null,
+      quantity: qty,
+      unitPrice: price,
+    })
     onOpenChange(false)
   }
 
@@ -77,7 +102,7 @@ export function AddNewItemDialog({ open, onOpenChange, initialName, onCreated }:
             <div className="space-y-2">
               <Label>Unit *</Label>
               <Select value={unitId} onValueChange={setUnitId}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select unit" />
                 </SelectTrigger>
                 <SelectContent>
@@ -90,13 +115,41 @@ export function AddNewItemDialog({ open, onOpenChange, initialName, onCreated }:
               </Select>
             </div>
           </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="new-item-qty">Quantity *</Label>
+              <Input
+                id="new-item-qty"
+                type="number"
+                step="0.001"
+                min="0"
+                value={quantity}
+                onChange={(e) => setQuantity(e.target.value)}
+                aria-invalid={!qtyValid}
+              />
+              {!qtyValid && <p className="text-xs text-destructive">Quantity must be greater than 0</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="new-item-price">Unit price (AED)</Label>
+              <Input
+                id="new-item-price"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+                value={unitPrice}
+                onChange={(e) => setUnitPrice(e.target.value)}
+                aria-invalid={!priceValid}
+              />
+            </div>
+          </div>
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleCreate} disabled={!name.trim() || !unitId || quickCreate.isPending}>
+          <Button onClick={handleCreate} disabled={!canCreate || quickCreate.isPending}>
             {quickCreate.isPending && <Loader2 className="animate-spin" />}
             Create &amp; add
           </Button>
