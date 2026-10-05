@@ -154,7 +154,7 @@ export function PurchaseLineItemRow({
       <TableCell className="min-w-56">
         {item?.product_id ? (
           <div className="flex items-center gap-3">
-            <ItemThumb name={item.product_name ?? ''} category={item.category_name} />
+            <ItemThumb name={item.product_name ?? ''} category={item.category_name} imagePath={item.image_path} />
             <div className="min-w-0">
               <p className="truncate font-medium">{item.product_name}</p>
               <p className="truncate text-xs text-muted-foreground">

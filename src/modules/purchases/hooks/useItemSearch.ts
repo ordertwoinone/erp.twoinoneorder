@@ -16,6 +16,8 @@ export interface ItemSearchResult {
   agreed_price: number | null
   last_purchase_price: number | null
   last_purchase_date: string | null
+  /** Missing until migration 0053 is applied. */
+  image_path?: string | null
 }
 
 export function useItemSearchQuery(

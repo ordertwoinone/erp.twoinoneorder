@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { cn } from '@/lib/utils'
+import { productImageUrl } from '@/lib/productImages'
 
 const PALETTE = [
   'bg-amber-100 text-amber-800',
@@ -16,8 +18,23 @@ function hash(text: string) {
   return h
 }
 
-/** Products have no photos yet, so each item gets an initials tile coloured by its category. */
-export function ItemThumb({ name, category, className }: { name: string; category?: string | null; className?: string }) {
+/** The item's photo when it has one; otherwise an initials tile coloured by its category. */
+export function ItemThumb({
+  name,
+  category,
+  imagePath,
+  className,
+}: {
+  name: string
+  category?: string | null
+  imagePath?: string | null
+  className?: string
+}) {
+  const [failed, setFailed] = useState(false)
+  const url = failed ? null : productImageUrl(imagePath)
+  if (url) {
+    return <img src={url} alt="" loading="lazy" onError={() => setFailed(true)} className={cn('size-10 shrink-0 rounded-md border bg-muted object-cover', className)} />
+  }
   const initials = name
     .split(/\s+/)
     .filter(Boolean)

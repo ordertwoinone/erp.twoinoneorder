@@ -262,6 +262,7 @@ export interface Database {
           base_unit_id: string
           pack_size: number | null
           pack_unit_id: string | null
+          image_path: string | null
           is_active: boolean
           created_by: string | null
           created_at: string
@@ -1922,8 +1923,13 @@ export interface Database {
           p_sku?: string | null
           p_brand_id?: string | null
           p_barcode?: string | null
+          p_image_path?: string | null
         }
         Returns: string
+      }
+      set_product_image: {
+        Args: { p_product_id: string; p_image_path: string | null }
+        Returns: undefined
       }
       quick_create_brand: {
         Args: { p_name: string }
@@ -1960,6 +1966,7 @@ export interface Database {
           agreed_price: number | null
           last_purchase_price: number | null
           last_purchase_date: string | null
+          image_path: string | null
         }[]
       }
       create_invoice_scan_job: {

@@ -60,7 +60,7 @@ export function usePurchaseQuery(id: string | undefined) {
         supabase.from('purchases').select('*, restaurants(name), suppliers(name)').eq('id', id!).single(),
         supabase
           .from('purchase_items')
-          .select('*, products(name, sku, barcode, brands(name)), units(name, code)')
+          .select('*, products(name, sku, barcode, image_path, brands(name)), units(name, code)')
           .eq('purchase_id', id!),
         supabase
           .from('approvals')

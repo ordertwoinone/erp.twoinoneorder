@@ -39,6 +39,7 @@ export const purchaseItemSchema = z.object({
   product_name: z.string().optional(),
   sku: z.string().nullable().optional(),
   barcode: z.string().nullable().optional(),
+  image_path: z.string().nullable().optional(),
   brand_name: z.string().optional(),
   pack_label: z.string().optional(),
   size_label: z.string().optional(),

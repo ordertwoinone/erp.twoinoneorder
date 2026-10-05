@@ -82,7 +82,7 @@ export const ItemSearchCombobox = forwardRef<HTMLInputElement, ItemSearchCombobo
                         }}
                         className="flex items-center gap-3 rounded-none border-b px-3 py-2.5 last:border-0"
                       >
-                        <ItemThumb name={item.name} category={item.category_name} />
+                        <ItemThumb name={item.name} category={item.category_name} imagePath={item.image_path} />
                         <div className="min-w-0 flex-1">
                           <div className="truncate font-medium">{item.name}</div>
                           <div className="truncate text-xs text-muted-foreground">

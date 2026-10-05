@@ -71,13 +71,14 @@ export function useQuickCreateProduct() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (input: { name: string; baseUnitId: string; sku?: string; brandId?: string; barcode?: string }) => {
+    mutationFn: async (input: { name: string; baseUnitId: string; sku?: string; brandId?: string; barcode?: string; imagePath?: string | null }) => {
       const { data, error } = await supabase.rpc('quick_create_product', {
         p_name: input.name,
         p_base_unit_id: input.baseUnitId,
         p_sku: input.sku || null,
         p_brand_id: input.brandId || null,
         p_barcode: input.barcode || null,
+        ...(input.imagePath ? { p_image_path: input.imagePath } : {}),
       })
       if (error) throw error
       return data as string

@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react'
-import { Loader2 } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { ImagePlus, Loader2, X } from 'lucide-react'
+import { toast } from 'sonner'
+import { uploadProductImage, validateProductImage } from '@/lib/productImages'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -23,6 +25,7 @@ interface AddNewItemDialogProps {
     barcode: string | null
     quantity: number
     unitPrice: number
+    imagePath: string | null
   }) => void
 }
 
@@ -34,6 +37,11 @@ export function AddNewItemDialog({ open, onOpenChange, initialName, onCreated }:
   const [unitId, setUnitId] = useState('')
   const [quantity, setQuantity] = useState('1')
   const [unitPrice, setUnitPrice] = useState('')
+  const [photo, setPhoto] = useState<File | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const photoInputRef = useRef<HTMLInputElement>(null)
+  const photoPreview = useMemo(() => (photo ? URL.createObjectURL(photo) : null), [photo])
+  useEffect(() => () => void (photoPreview && URL.revokeObjectURL(photoPreview)), [photoPreview])
 
   const { data: units } = useUnitsOptions()
   const { data: brands } = useBrandsOptions()
@@ -48,6 +56,7 @@ export function AddNewItemDialog({ open, onOpenChange, initialName, onCreated }:
       setUnitId('')
       setQuantity('1')
       setUnitPrice('')
+      setPhoto(null)
     }
   }, [open, initialName])
 
@@ -59,7 +68,19 @@ export function AddNewItemDialog({ open, onOpenChange, initialName, onCreated }:
 
   async function handleCreate() {
     if (!canCreate) return
-    const productId = await quickCreate.mutateAsync({ name: name.trim(), baseUnitId: unitId, sku, brandId, barcode })
+    let imagePath: string | null = null
+    if (photo) {
+      setUploading(true)
+      try {
+        imagePath = await uploadProductImage(photo)
+      } catch (error) {
+        // The item is still useful without a photo; say so rather than block it.
+        toast.error('Photo not saved', { description: (error as Error).message })
+      } finally {
+        setUploading(false)
+      }
+    }
+    const productId = await quickCreate.mutateAsync({ name: name.trim(), baseUnitId: unitId, sku, brandId, barcode, imagePath })
     const unit = units?.find((u) => u.id === unitId)
     const brand = brands?.find((b) => b.id === brandId)
     onCreated({ id: productId, name: name.trim(), baseUnitId: unitId, baseUnitCode: unit?.code ?? '', brandName: brand?.name ?? null,
@@ -67,6 +88,7 @@ export function AddNewItemDialog({ open, onOpenChange, initialName, onCreated }:
       barcode: barcode.trim() || null,
       quantity: qty,
       unitPrice: price,
+      imagePath,
     })
     onOpenChange(false)
   }
@@ -80,9 +102,49 @@ export function AddNewItemDialog({ open, onOpenChange, initialName, onCreated }:
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="new-item-name">Item name</Label>
-            <Input id="new-item-name" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+          <div className="flex items-end gap-4">
+            <div className="shrink-0 space-y-2">
+              <Label>Photo</Label>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => photoInputRef.current?.click()}
+                  className="flex size-20 items-center justify-center overflow-hidden rounded-lg border border-dashed border-primary/50 bg-muted/30 text-primary hover:bg-primary/5"
+                  aria-label={photo ? 'Change photo' : 'Add photo'}
+                >
+                  {photoPreview ? <img src={photoPreview} alt="" className="size-full object-cover" /> : <ImagePlus className="size-6" />}
+                </button>
+                {photo && (
+                  <button
+                    type="button"
+                    onClick={() => setPhoto(null)}
+                    className="absolute -top-2 -right-2 flex size-5 items-center justify-center rounded-full border bg-background text-muted-foreground hover:text-destructive"
+                    aria-label="Remove photo"
+                  >
+                    <X className="size-3" />
+                  </button>
+                )}
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    e.target.value = ''
+                    if (!file) return
+                    const problem = validateProductImage(file)
+                    if (problem) return void toast.error(problem)
+                    setPhoto(file)
+                  }}
+                />
+              </div>
+            </div>
+            <div className="min-w-0 flex-1 space-y-2">
+              <Label htmlFor="new-item-name">Item name</Label>
+              <Input id="new-item-name" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+              <p className="text-[11px] text-muted-foreground">Photo optional · JPG, PNG or WebP, up to 5 MB</p>
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -149,8 +211,8 @@ export function AddNewItemDialog({ open, onOpenChange, initialName, onCreated }:
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleCreate} disabled={!canCreate || quickCreate.isPending}>
-            {quickCreate.isPending && <Loader2 className="animate-spin" />}
+          <Button onClick={handleCreate} disabled={!canCreate || quickCreate.isPending || uploading}>
+            {(quickCreate.isPending || uploading) && <Loader2 className="animate-spin" />}
             Create &amp; add
           </Button>
         </DialogFooter>
