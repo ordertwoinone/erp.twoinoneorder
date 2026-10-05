@@ -34,6 +34,7 @@ const moduleRoutes: ModuleRoute[] = [
   { path: '/purchases/requests', permission: 'purchases.create', Component: lazy(() => import('@/modules/purchase-requests/pages/PurchaseRequestsListPage')) },
   { path: '/purchases/requests/new', permission: 'purchases.create', Component: lazy(() => import('@/modules/purchase-requests/pages/PurchaseRequestFormPage')) },
   { path: '/purchases/requests/:id', permission: 'purchases.create', Component: lazy(() => import('@/modules/purchase-requests/pages/PurchaseRequestDetailPage')) },
+  { path: '/purchases/requests/:id/edit', permission: 'purchases.create', Component: lazy(() => import('@/modules/purchase-requests/pages/PurchaseRequestFormPage')) },
 
   { path: '/purchases/orders', permission: 'purchase_orders.manage', Component: lazy(() => import('@/modules/purchases/pages/PurchaseOrdersListPage')) },
   { path: '/purchases/orders/new', permission: 'purchase_orders.manage', Component: lazy(() => import('@/modules/purchases/pages/PurchaseOrderFormPage')) },

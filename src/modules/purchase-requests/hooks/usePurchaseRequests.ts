@@ -35,7 +35,7 @@ export function usePurchaseRequestQuery(id: string | undefined) {
     queryFn: async () => {
       const [requestRes, itemsRes] = await Promise.all([
         supabase.from('purchase_requests').select('*, restaurants(name)').eq('id', id!).single(),
-        supabase.from('purchase_request_items').select('*, products(name), units(code)').eq('purchase_request_id', id!),
+        supabase.from('purchase_request_items').select('*, products(name, image_path), units(code)').eq('purchase_request_id', id!),
       ])
       if (requestRes.error) throw requestRes.error
       if (itemsRes.error) throw itemsRes.error
@@ -45,31 +45,103 @@ export function usePurchaseRequestQuery(id: string | undefined) {
   })
 }
 
+/** submit = true sends the request for review; false keeps it as a draft ("Save PO"). */
 export function useSavePurchaseRequest() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
 
   return useMutation({
-    mutationFn: async (input: PurchaseRequestFormInput) => {
+    mutationFn: async ({ values, submit }: { values: PurchaseRequestFormInput; submit: boolean }) => {
       const { data, error } = await supabase.rpc('save_purchase_request', {
         payload: {
-          id: input.id ?? null,
-          restaurant_id: input.restaurant_id,
-          notes: input.notes || null,
-          items: input.items,
+          id: values.id ?? null,
+          restaurant_id: values.restaurant_id,
+          notes: values.notes || null,
+          items: values.items,
+          submit,
         },
       })
       if (error) throw error
-      return data as string
+      return { id: data as string, submit }
     },
-    onSuccess: (id) => {
+    onSuccess: ({ id, submit }) => {
       queryClient.invalidateQueries({ queryKey: ['purchase-requests'] })
-      toast.success('Purchase request submitted')
-      navigate(`/purchases/requests/${id}`)
+      toast.success(submit ? 'Purchase order sent for review' : 'Saved as draft', {
+        description: submit ? undefined : 'You can keep editing it and send it later.',
+      })
+      navigate(submit ? `/purchases/requests/${id}` : `/purchases/requests/${id}/edit`, { replace: !submit })
     },
     onError: (error: Error) => {
       toast.error('Unable to save purchase request', { description: error.message })
     },
+  })
+}
+
+export interface RequestCatalogItem {
+  product_id: string
+  name: string
+  sku: string | null
+  category_id: string | null
+  category_name: string | null
+  image_path: string | null
+  base_unit_id: string
+  unit_code: string
+  price: number | null
+  times_purchased: number
+}
+
+/** Item cards for the ordering screen: this restaurant's usual items first, with last prices. */
+export function useRequestCatalog(restaurantId: string | null) {
+  return useQuery({
+    queryKey: ['purchase-requests', 'catalog', restaurantId],
+    enabled: !!restaurantId,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async (): Promise<RequestCatalogItem[]> => {
+      const { data, error } = await supabase.rpc('get_request_catalog', { p_restaurant_id: restaurantId! })
+      if (error) throw error
+      return data ?? []
+    },
+  })
+}
+
+/** Target, allowance and value of requests already sent today (excluding the one being edited). */
+export function useRequestDashboard(restaurantId: string | null, excludeRequestId?: string) {
+  return useQuery({
+    queryKey: ['purchase-requests', 'dashboard', restaurantId, excludeRequestId ?? null],
+    enabled: !!restaurantId,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_purchase_request_dashboard', {
+        p_restaurant_id: restaurantId!,
+        p_exclude_request_id: excludeRequestId ?? null,
+      })
+      if (error) throw error
+      const row = data?.[0]
+      return {
+        target: row?.daily_purchase_target ?? null,
+        allowance: row?.daily_purchase_allowance ?? null,
+        sentToday: Number(row?.requests_today ?? 0),
+        sentTodayCount: Number(row?.requests_today_count ?? 0),
+      }
+    },
+  })
+}
+
+export function useSetPurchaseTargets() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { restaurantId: string; target: number | null; allowance: number | null }) => {
+      const { error } = await supabase.rpc('set_restaurant_purchase_targets', {
+        p_restaurant_id: input.restaurantId,
+        p_target: input.target,
+        p_allowance: input.allowance,
+      })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['purchase-requests', 'dashboard'] })
+      toast.success('Purchase target updated')
+    },
+    onError: (error: Error) => toast.error('Unable to update target', { description: error.message }),
   })
 }
 

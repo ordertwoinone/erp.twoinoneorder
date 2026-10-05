@@ -28,6 +28,8 @@ export interface Database {
           trn: string | null
           is_head_office: boolean
           is_active: boolean
+          daily_purchase_target: number | null
+          daily_purchase_allowance: number | null
           created_at: string
           updated_at: string
         }
@@ -1354,7 +1356,7 @@ export interface Database {
           id: string
           request_number: string
           restaurant_id: string
-          status: 'requested' | 'under_review' | 'approved' | 'rejected' | 'ordered' | 'received' | 'invoiced' | 'cancelled'
+          status: 'draft' | 'requested' | 'under_review' | 'approved' | 'rejected' | 'ordered' | 'received' | 'invoiced' | 'cancelled'
           notes: string | null
           requested_by: string | null
           reviewed_by: string | null
@@ -1375,7 +1377,16 @@ export interface Database {
         ]
       }
       purchase_request_items: {
-        Row: { id: string; purchase_request_id: string; product_id: string; unit_id: string; quantity: number; notes: string | null }
+        Row: {
+          id: string
+          purchase_request_id: string
+          product_id: string
+          unit_id: string
+          quantity: number
+          notes: string | null
+          unit_price: number | null
+          vat_rate: number
+        }
         Insert: Partial<Database['public']['Tables']['purchase_request_items']['Row']> & {
           purchase_request_id: string
           product_id: string
@@ -1864,6 +1875,29 @@ export interface Database {
       save_purchase_request: {
         Args: { payload: Json }
         Returns: string
+      }
+      set_restaurant_purchase_targets: {
+        Args: { p_restaurant_id: string; p_target: number | null; p_allowance: number | null }
+        Returns: undefined
+      }
+      get_purchase_request_dashboard: {
+        Args: { p_restaurant_id: string; p_exclude_request_id?: string | null }
+        Returns: { daily_purchase_target: number | null; daily_purchase_allowance: number | null; requests_today: number; requests_today_count: number }[]
+      }
+      get_request_catalog: {
+        Args: { p_restaurant_id: string }
+        Returns: {
+          product_id: string
+          name: string
+          sku: string | null
+          category_id: string | null
+          category_name: string | null
+          image_path: string | null
+          base_unit_id: string
+          unit_code: string
+          price: number | null
+          times_purchased: number
+        }[]
       }
       review_purchase_request: {
         Args: { p_request_id: string; p_action: string; p_comment?: string | null }

@@ -5,6 +5,9 @@ export const purchaseRequestItemSchema = z.object({
   unit_id: z.string().uuid('Select a unit'),
   quantity: z.coerce.number().gt(0, 'Quantity must be greater than 0'),
   notes: z.string().optional().or(z.literal('')),
+  /** Estimated price per unit (last purchase price), when known. */
+  unit_price: z.number().nullable().optional(),
+  vat_rate: z.number().optional(),
 })
 
 export const purchaseRequestFormSchema = z.object({
