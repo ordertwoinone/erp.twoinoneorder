@@ -26,6 +26,7 @@ import { ConfirmActionDialog } from '@/components/shared/ConfirmActionDialog'
 import { useAuth } from '@/hooks/useAuth'
 import { useExchangeRatesQuery } from '@/hooks/useExchangeRates'
 import { SupplierFormDialog } from '@/modules/suppliers/components/SupplierFormDialog'
+import { useSavePriceLock } from '@/modules/suppliers/hooks/usePriceLocks'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -109,6 +110,7 @@ export default function PurchaseFormPage() {
   const saveDraft = useSavePurchaseDraft()
   const submitForApproval = useSubmitPurchaseForApproval()
   const postNow = usePostPurchaseNow()
+  const savePriceLock = useSavePriceLock()
   const { data: exchangeRates = [] } = useExchangeRatesQuery()
   const { hasPermission } = useAuth()
   const navigate = useNavigate()
@@ -406,6 +408,25 @@ export default function PurchaseFormPage() {
     })
   }
 
+  /** Saves the line's price as the supplier's locked price (closing any previous lock for that item and unit). */
+  async function handleLockPrice(index: number, scope: 'restaurant' | 'all') {
+    const line = getValues(`items.${index}`)
+    const sid = getValues('supplier_id')
+    const rid = getValues('restaurant_id')
+    const price = Number(line.unit_price) || 0
+    if (!sid || !line.product_id || !line.unit_id || price <= 0) return
+    await savePriceLock.mutateAsync({
+      supplierId: sid,
+      productId: line.product_id,
+      unitId: line.unit_id,
+      packSize: line.pack_size === '' || line.pack_size === undefined ? undefined : Number(line.pack_size),
+      agreedPrice: price,
+      restaurantIds: scope === 'restaurant' && rid ? [rid] : [],
+    })
+    setValue(`items.${index}.agreed_price`, price)
+    setValue(`items.${index}.agreed_unit_id`, line.unit_id)
+  }
+
   function viewPriceAlerts() {
     comparisonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     setHighlightComparison(true)
@@ -468,6 +489,7 @@ export default function PurchaseFormPage() {
 
   const isBusy = saveDraft.isPending || submitForApproval.isPending || postNow.isPending
   const canPost = hasPermission('purchases.approve') && hasPermission('purchases.post')
+  const canLockPrices = hasPermission('supplier_prices.manage')
   const termOptions = paymentTerms !== '' && paymentTerms !== undefined && !PAYMENT_TERMS.includes(Number(paymentTerms))
     ? [...PAYMENT_TERMS, Number(paymentTerms)].sort((a, b) => a - b)
     : PAYMENT_TERMS
@@ -836,27 +858,28 @@ export default function PurchaseFormPage() {
             <TableHeader>
               <TableRow className="bg-muted/40 text-xs">
                 <TableHead className="w-8">#</TableHead>
-                <TableHead>Item / code</TableHead>
-                <TableHead>Brand &amp; pack</TableHead>
-                <TableHead>Qty</TableHead>
-                <TableHead title="Free of charge">FOC</TableHead>
-                <TableHead>Unit</TableHead>
-                {currencyCode !== 'AED' && <TableHead className="leading-tight">Price<br />({currencyCode})</TableHead>}
-                <TableHead className="leading-tight">Price<br />(AED)</TableHead>
-                <TableHead className="leading-tight">Previous<br />price</TableHead>
-                <TableHead className="leading-tight">Contract<br />price</TableHead>
-                <TableHead className="leading-tight">Unit<br />disc.</TableHead>
-                <TableHead>VAT</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-                <TableHead className="text-right leading-tight">Line total<br />(AED)</TableHead>
-                <TableHead className="text-right leading-tight">Landing<br />cost</TableHead>
-                <TableHead className="w-10" />
+                    <TableHead>Item code</TableHead>
+                    <TableHead>Item description</TableHead>
+                    <TableHead>UOM</TableHead>
+                    <TableHead>Qty</TableHead>
+                    {currencyCode !== 'AED' && <TableHead className="leading-tight">Rate<br />({currencyCode})</TableHead>}
+                    <TableHead className="leading-tight">Rate<br />(AED)</TableHead>
+                    <TableHead className="leading-tight">Previous<br />price</TableHead>
+                    <TableHead className="leading-tight">Lock<br />price</TableHead>
+                    <TableHead className="leading-tight">Discount<br />/ unit</TableHead>
+                    <TableHead className="text-right leading-tight">Amount<br />before VAT</TableHead>
+                    <TableHead>VAT %</TableHead>
+                    <TableHead className="text-right leading-tight">VAT<br />amount</TableHead>
+                    <TableHead className="text-right leading-tight">Amount<br />incl. VAT</TableHead>
+                    <TableHead className="border-l" title="Free of charge">FOC</TableHead>
+                    <TableHead className="text-right leading-tight">Landing<br />cost</TableHead>
+                    <TableHead className="w-10" />
               </TableRow>
             </TableHeader>
             <TableBody>
               {fields.length === 0 ? (
                 <TableRow>
-                  <TableHead colSpan={17} className="h-20 text-center font-normal text-muted-foreground">
+                  <TableHead colSpan={18} className="h-20 text-center font-normal text-muted-foreground">
                     {supplierId && restaurantId
                       ? 'Search above to add items, add one manually, or import from a template.'
                       : 'Select the restaurant and supplier, then add items.'}
@@ -879,6 +902,7 @@ export default function PurchaseFormPage() {
                     onPickProduct={handlePickProduct}
                     onUnitChange={handleUnitChange}
                     onRemove={() => remove(index)}
+                    onLockPrice={canLockPrices && supplierId ? (scope) => handleLockPrice(index, scope) : undefined}
                   />
                 ))
               )}

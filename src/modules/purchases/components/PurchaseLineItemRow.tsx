@@ -1,7 +1,7 @@
 import type { UseFormReturn } from 'react-hook-form'
 import { Controller } from 'react-hook-form'
 import { format, parseISO } from 'date-fns'
-import { ArrowDown, ArrowUp, CheckCircle2, History, MoreVertical, RotateCcw, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, CheckCircle2, History, Lock, MoreVertical, RotateCcw, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
@@ -104,6 +104,7 @@ export function PurchaseLineItemRow({
   onPickProduct,
   onUnitChange,
   onRemove,
+  onLockPrice,
 }: {
   index: number
   form: UseFormReturn<PurchaseFormInput>
@@ -118,6 +119,8 @@ export function PurchaseLineItemRow({
   onPickProduct: (index: number, productId: string) => void
   onUnitChange: (index: number, unitId: string) => void
   onRemove: () => void
+  /** Save the line's current price as the supplier's locked (agreed) price. Omit when the user can't manage supplier prices. */
+  onLockPrice?: (scope: 'restaurant' | 'all') => void
 }) {
   const { control, watch, setValue, formState } = form
   const item = watch(`items.${index}`)
@@ -136,15 +139,26 @@ export function PurchaseLineItemRow({
 
   return (
     <TableRow className={cn('align-top', isAbove && 'bg-warning/5')}>
+      {/* Same order as a supplier tax invoice: code, description, UOM, qty, rate, discount, amounts, VAT. */}
       <TableCell className="pt-4 text-muted-foreground">{index + 1}</TableCell>
-      <TableCell className="min-w-52">
+      <TableCell className="min-w-24 pt-4 text-xs tabular-nums">
+        {item?.sku || item?.barcode ? (
+          <>
+            <p className="font-medium">{item.sku || item.barcode}</p>
+            {item.sku && item.barcode && <p className="text-muted-foreground">{item.barcode}</p>}
+          </>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        )}
+      </TableCell>
+      <TableCell className="min-w-56">
         {item?.product_id ? (
           <div className="flex items-center gap-3">
             <ItemThumb name={item.product_name ?? ''} category={item.category_name} />
             <div className="min-w-0">
               <p className="truncate font-medium">{item.product_name}</p>
               <p className="truncate text-xs text-muted-foreground">
-                {[item.sku, item.barcode].filter(Boolean).join(' · ') || item.size_label || item.unit_code}
+                {[item.brand_name, item.pack_label || item.size_label].filter(Boolean).join(' · ') || item.unit_code}
               </p>
             </div>
           </div>
@@ -166,9 +180,19 @@ export function PurchaseLineItemRow({
           </div>
         )}
       </TableCell>
-      <TableCell className="min-w-28 text-sm">
-        <p>{item?.brand_name || '—'}</p>
-        <p className="text-xs text-muted-foreground">{item?.pack_label || ''}</p>
+      <TableCell className="w-28">
+        <Select value={item?.unit_id || undefined} onValueChange={(v) => onUnitChange(index, v)}>
+          <SelectTrigger className="h-9 w-24" title={units.find((u) => u.id === item?.unit_id)?.name}>
+            <SelectValue placeholder="UOM" />
+          </SelectTrigger>
+          <SelectContent>
+            {units.map((u) => (
+              <SelectItem key={u.id} value={u.id}>
+                {u.name} ({u.code})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </TableCell>
       <TableCell className="w-20">
         <Controller
@@ -176,29 +200,6 @@ export function PurchaseLineItemRow({
           name={`items.${index}.quantity`}
           render={({ field }) => <Input type="number" step="0.001" min="0" className="h-9 w-16" aria-invalid={!!errors?.quantity} {...field} />}
         />
-      </TableCell>
-      <TableCell className="w-20">
-        <Controller
-          control={control}
-          name={`items.${index}.foc_quantity`}
-          render={({ field }) => (
-            <Input type="number" step="0.001" min="0" placeholder="0" title="Free of charge quantity" className="h-9 w-16" {...field} value={field.value ?? ''} />
-          )}
-        />
-      </TableCell>
-      <TableCell className="w-32">
-        <Select value={item?.unit_id || undefined} onValueChange={(v) => onUnitChange(index, v)}>
-          <SelectTrigger className="h-9 w-28">
-            <SelectValue placeholder="Unit" />
-          </SelectTrigger>
-          <SelectContent>
-            {units.map((u) => (
-              <SelectItem key={u.id} value={u.id}>
-                {u.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
       </TableCell>
       {foreign && (
         <TableCell className="w-28">
@@ -246,10 +247,13 @@ export function PurchaseLineItemRow({
       </TableCell>
       <TableCell className="w-28">
         {agreed === null ? (
-          <span className="text-xs text-muted-foreground">No contract</span>
+          <span className="text-xs text-muted-foreground">Not locked</span>
         ) : (
           <div>
-            <p className="text-sm tabular-nums">{money(agreed)}</p>
+            <p className="flex items-center gap-1 text-sm tabular-nums">
+              <Lock className="size-3 text-muted-foreground" />
+              {money(agreed)}
+            </p>
             {isAbove || isBelow ? (
               <span
                 className={cn(
@@ -276,7 +280,9 @@ export function PurchaseLineItemRow({
             <Input type="number" step="0.01" min="0" placeholder="0.00" title="Discount per unit (AED)" className="h-9 w-20 text-right tabular-nums" {...field} value={field.value ?? ''} />
           )}
         />
+        {line.billDiscount > 0 && <p className="mt-0.5 text-[11px] text-muted-foreground">+{money(line.billDiscount)} bill</p>}
       </TableCell>
+      <TableCell className="w-28 pt-4 text-right tabular-nums">{money(line.net)}</TableCell>
       <TableCell className="w-24">
         {taxDisabled ? (
           <span className="flex h-9 items-center text-xs text-muted-foreground">Tax off</span>
@@ -301,13 +307,16 @@ export function PurchaseLineItemRow({
           />
         )}
       </TableCell>
-      <TableCell className="w-28 pt-4 text-right tabular-nums">
-        {money(line.net)}
-        {line.discount > 0 && <p className="text-[11px] text-muted-foreground">−{money(line.discount)} disc.</p>}
-      </TableCell>
-      <TableCell className="w-28 pt-4 text-right font-semibold tabular-nums">
-        {money(line.total)}
-        {line.vat > 0 && <p className="text-[11px] font-normal text-muted-foreground">VAT {money(line.vat)}</p>}
+      <TableCell className="w-24 pt-4 text-right tabular-nums">{money(line.vat)}</TableCell>
+      <TableCell className="w-28 pt-4 text-right font-semibold tabular-nums">{money(line.total)}</TableCell>
+      <TableCell className="w-20 border-l">
+        <Controller
+          control={control}
+          name={`items.${index}.foc_quantity`}
+          render={({ field }) => (
+            <Input type="number" step="0.001" min="0" placeholder="0" title="Free of charge quantity" className="h-9 w-16" {...field} value={field.value ?? ''} />
+          )}
+        />
       </TableCell>
       <TableCell className="w-28 pt-4 text-right text-sm tabular-nums" title="Cost per unit received, incl. free qty and other expenses">
         {line.landingCost !== null ? money(line.landingCost) : '—'}
@@ -327,8 +336,18 @@ export function PurchaseLineItemRow({
             )}
             {agreed !== null && (
               <DropdownMenuItem onSelect={() => setPrice(agreed)}>
-                <RotateCcw /> Use contract price
+                <RotateCcw /> Use locked price
               </DropdownMenuItem>
+            )}
+            {onLockPrice && item?.product_id && unitPrice > 0 && (
+              <>
+                <DropdownMenuItem onSelect={() => onLockPrice('restaurant')}>
+                  <Lock /> Lock {money(unitPrice)} for this restaurant
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => onLockPrice('all')}>
+                  <Lock /> Lock {money(unitPrice)} for all restaurants
+                </DropdownMenuItem>
+              </>
             )}
             <DropdownMenuItem variant="destructive" onSelect={onRemove}>
               <Trash2 /> Remove item
