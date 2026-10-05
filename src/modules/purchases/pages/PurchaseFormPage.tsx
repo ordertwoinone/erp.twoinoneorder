@@ -232,9 +232,20 @@ export default function PurchaseFormPage() {
   /** Builds full form lines (names, brand, pack, contract price) for raw product/unit/qty/price lines. */
   async function buildLines(raw: RawLine[]): Promise<PurchaseItemInput[]> {
     const sid = getValues('supplier_id')
-    const agreed = sid ? await fetchAgreedPrices(sid, [...new Set(raw.map((r) => r.product_id))]).catch(() => new Map<string, number>()) : new Map<string, number>()
+    const ids = [...new Set(raw.map((r) => r.product_id))]
+    const agreed = sid ? await fetchAgreedPrices(sid, ids).catch(() => new Map<string, number>()) : new Map<string, number>()
+    // Items created moments ago (e.g. "New item" while reviewing a scan) may not be in the cached list yet.
+    const missing = ids.filter((pid) => !productsById.has(pid))
+    const fetched = new Map<string, (typeof products)[number]>()
+    if (missing.length) {
+      const { data } = await supabase
+        .from('products')
+        .select('id, sku, barcode, name, base_unit_id, pack_size, image_path, brands(name), categories(name)')
+        .in('id', missing)
+      for (const p of data ?? []) fetched.set(p.id, p)
+    }
     return raw.map((r) => {
-      const product = productsById.get(r.product_id)
+      const product = productsById.get(r.product_id) ?? fetched.get(r.product_id)
       const unit = unitsById.get(r.unit_id)
       const pack = r.pack_size ?? product?.pack_size ?? null
       return {
@@ -391,6 +402,21 @@ export default function PurchaseFormPage() {
   async function handleScanConfirm(result: ScannedInvoiceResult) {
     if (!getValues('invoice_number')) setValue('invoice_number', result.invoiceNumber)
     if (result.invoiceDate) setValue('invoice_date', result.invoiceDate)
+    if (result.lpoNumber && !getValues('po_reference')) setValue('po_reference', result.lpoNumber)
+    // Pick the supplier from the invoice when none is chosen yet: TRN first, then name.
+    if (!getValues('supplier_id')) {
+      const trn = result.supplierTrn?.replace(/\D/g, '')
+      const name = result.supplierName?.toLowerCase().trim()
+      const found =
+        (trn && suppliers.find((s) => s.trn?.replace(/\D/g, '') === trn)) ||
+        (name && suppliers.find((s) => s.name.toLowerCase() === name || name.includes(s.name.toLowerCase()) || s.name.toLowerCase().includes(name)))
+      if (found) {
+        await handleSupplierChange(found.id)
+        toast.info(`Supplier set to ${found.name} from the invoice`)
+      } else if (result.supplierName) {
+        toast.warning('Supplier not found', { description: `“${result.supplierName}” isn't in your suppliers — select or add it.` })
+      }
+    }
     const built = await buildLines(
       result.items.map((i) => ({
         product_id: i.productId,
@@ -400,6 +426,11 @@ export default function PurchaseFormPage() {
         pack_size: i.packSize ? Number(i.packSize) : null,
       })),
     )
+    // The invoice prints a discount per line; the form keeps it per unit.
+    result.items.forEach((i, idx) => {
+      built[idx].vat_rate = i.vatRate
+      built[idx].unit_discount = i.discount > 0 && i.quantity > 0 ? Math.round((i.discount / i.quantity) * 100) / 100 : ''
+    })
     mergeLines(built)
     setScanResultId(result.scanResultId)
   }

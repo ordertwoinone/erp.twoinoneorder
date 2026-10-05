@@ -12,14 +12,27 @@ export interface ExtractedInvoiceItem {
   pack_size: number | null
   quantity: number
   unit_price: number
+  // The fields below were added later; scans made before then don't have them.
+  /** Line discount amount (not per unit). */
+  discount?: number | null
+  amount_before_vat?: number | null
+  vat_percent?: number | null
+  vat_amount?: number | null
+  amount_including_vat?: number | null
   confidence: number
   is_uncertain: boolean
 }
 
 export interface ExtractedInvoice {
   supplier_name: string | null
+  supplier_trn?: string | null
   invoice_number: string | null
   invoice_date: string | null
+  lpo_number?: string | null
+  total_discount?: number | null
+  total_before_vat?: number | null
+  total_vat?: number | null
+  grand_total?: number | null
   items: ExtractedInvoiceItem[]
 }
 
