@@ -40,6 +40,8 @@ export interface ScannedInvoiceResult {
     productId: string
     unitId: string
     packSize: string
+    /** Item description as printed on the invoice. */
+    description: string
     quantity: number
     unitPrice: number
     /** Discount for the whole line, as printed. */
@@ -150,6 +152,7 @@ export function InvoiceScanDialog({ restaurantId, supplierId, onConfirm }: Invoi
         productId: r.productId,
         unitId: r.unitId,
         packSize: r.packSize,
+        description: r.description,
         quantity: r.quantity,
         unitPrice: r.unit_price,
         discount: Number(r.lineDiscount) || 0,

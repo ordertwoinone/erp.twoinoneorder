@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { UseFormReturn } from 'react-hook-form'
 import { Controller } from 'react-hook-form'
 import { format, parseISO } from 'date-fns'
@@ -5,6 +6,7 @@ import { ArrowDown, ArrowUp, CheckCircle2, History, Lock, MoreVertical, RotateCc
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
+import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { TableCell, TableRow } from '@/components/ui/table'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -24,6 +26,121 @@ export interface UnitOption {
 export interface ProductOption {
   id: string
   name: string
+  sku?: string | null
+  barcode?: string | null
+  image_path?: string | null
+}
+
+/**
+ * Free-text item description (as on the supplier's invoice). Typing suggests
+ * catalogue items; picking one links the line to it and keeps the text.
+ */
+function DescriptionCell({
+  index,
+  form,
+  products,
+  onPickProduct,
+}: {
+  index: number
+  form: UseFormReturn<PurchaseFormInput>
+  products: ProductOption[]
+  onPickProduct: (index: number, productId: string) => void
+}) {
+  const { register, watch, setValue, formState } = form
+  const item = watch(`items.${index}`)
+  const text = item?.description ?? ''
+  const [focused, setFocused] = useState(false)
+  const [dismissed, setDismissed] = useState(false)
+  const error = formState.errors.items?.[index]?.product_id
+
+  const term = text.trim().toLowerCase()
+  // Ranked by how many typed words appear in the item's name / code, so invoice
+  // wording with extra pack details ("… 6x2kg") still finds the item.
+  const suggestions = (() => {
+    if (!term) return products.slice(0, 8)
+    const words = term.split(/[^a-z0-9]+/).filter((w) => w.length > 1)
+    return products
+      .map((p) => {
+        const hay = `${p.name} ${p.sku ?? ''} ${p.barcode ?? ''}`.toLowerCase()
+        return { p, score: words.filter((w) => hay.includes(w)).length }
+      })
+      .filter((x) => x.score > 0)
+      .sort((a, b) => b.score - a.score || a.p.name.localeCompare(b.p.name))
+      .slice(0, 8)
+      .map((x) => x.p)
+  })()
+
+  // Suggest while typing on an unlinked line, or when the text no longer matches the linked item.
+  const linkedMatchesText = !!item?.product_id && term === (item.product_name ?? '').trim().toLowerCase()
+  const open = focused && !dismissed && !linkedMatchesText && (term.length > 0 || !item?.product_id) && suggestions.length > 0
+
+  return (
+    <Popover open={open}>
+      <PopoverAnchor asChild>
+        <div>
+          <Input
+            className="h-9"
+            placeholder="Type item description…"
+            autoComplete="off"
+            aria-invalid={!!error}
+            {...register(`items.${index}.description`, { onChange: () => setDismissed(false) })}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setTimeout(() => setFocused(false), 150)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') setDismissed(true)
+              if (e.key === 'Enter' && open) {
+                e.preventDefault()
+                onPickProduct(index, suggestions[0].id)
+                setDismissed(true)
+              }
+            }}
+          />
+        </div>
+      </PopoverAnchor>
+      <PopoverContent align="start" className="w-80 p-1" onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
+        <p className="px-2 py-1 text-[11px] text-muted-foreground">{item?.product_id ? 'Link to a different item' : 'Link to an item'} · Enter picks the first</p>
+        {suggestions.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              onPickProduct(index, p.id)
+              setDismissed(true)
+            }}
+            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent"
+          >
+            <ItemThumb name={p.name} imagePath={p.image_path} className="size-7" />
+            <span className="min-w-0 flex-1 truncate">{p.name}</span>
+            {p.sku && <span className="shrink-0 text-xs text-muted-foreground">{p.sku}</span>}
+          </button>
+        ))}
+      </PopoverContent>
+      {item?.product_id ? (
+        <div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <ItemThumb name={item.product_name ?? ''} category={item.category_name} imagePath={item.image_path} className="size-5 rounded text-[8px]" />
+          <span className="truncate">
+            Item: <span className="font-medium text-foreground">{item.product_name}</span>
+            {[item.brand_name, item.pack_label || item.size_label].filter(Boolean).length > 0 &&
+              ` · ${[item.brand_name, item.pack_label || item.size_label].filter(Boolean).join(' · ')}`}
+          </span>
+          {text.trim() !== (item.product_name ?? '') && (
+            <button
+              type="button"
+              className="shrink-0 text-primary hover:underline"
+              onClick={() => setValue(`items.${index}.description`, item.product_name ?? '', { shouldDirty: true })}
+            >
+              Use item name
+            </button>
+          )}
+        </div>
+      ) : (
+        <p className={cn('mt-1 text-[11px]', error ? 'text-destructive' : 'text-muted-foreground')}>
+          {error ? 'Pick an item from the suggestions' : 'Not linked to an item yet'}
+        </p>
+      )}
+    </Popover>
+  )
 }
 
 function ChangeBadge({ current, previous }: { current: number; previous: number }) {
@@ -151,34 +268,8 @@ export function PurchaseLineItemRow({
           <span className="text-muted-foreground">—</span>
         )}
       </TableCell>
-      <TableCell className="min-w-56">
-        {item?.product_id ? (
-          <div className="flex items-center gap-3">
-            <ItemThumb name={item.product_name ?? ''} category={item.category_name} imagePath={item.image_path} />
-            <div className="min-w-0">
-              <p className="truncate font-medium">{item.product_name}</p>
-              <p className="truncate text-xs text-muted-foreground">
-                {[item.brand_name, item.pack_label || item.size_label].filter(Boolean).join(' · ') || item.unit_code}
-              </p>
-            </div>
-          </div>
-        ) : (
-          <div>
-            <Select value="" onValueChange={(v) => onPickProduct(index, v)}>
-              <SelectTrigger className="h-9 w-full" aria-invalid={!!errors?.product_id}>
-                <SelectValue placeholder="Select item" />
-              </SelectTrigger>
-              <SelectContent className="max-h-72">
-                {products.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {errors?.product_id && <p className="mt-1 text-xs text-destructive">{errors.product_id.message}</p>}
-          </div>
-        )}
+      <TableCell className="min-w-64">
+        <DescriptionCell index={index} form={form} products={products} onPickProduct={onPickProduct} />
       </TableCell>
       <TableCell className="w-28">
         <Select value={item?.unit_id || undefined} onValueChange={(v) => onUnitChange(index, v)}>

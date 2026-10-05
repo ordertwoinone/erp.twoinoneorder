@@ -191,6 +191,7 @@ export default function PurchaseFormPage() {
           unit_discount: item.unit_discount ? Number(item.unit_discount) : '',
           vat_rate: purchase.tax_disabled ? 0.05 : net > 0 && item.tax_amount / net > 0.025 ? 0.05 : 0,
           product_name: item.products?.name,
+          description: item.description ?? item.products?.name ?? '',
           sku: item.products?.sku ?? null,
           barcode: item.products?.barcode ?? null,
           image_path: item.products?.image_path ?? null,
@@ -256,6 +257,7 @@ export default function PurchaseFormPage() {
         unit_price: r.unit_price,
         vat_rate: DEFAULT_VAT,
         product_name: product?.name ?? 'Item',
+        description: product?.name ?? '',
         sku: product?.sku ?? null,
         barcode: product?.barcode ?? null,
         image_path: product?.image_path ?? null,
@@ -307,6 +309,7 @@ export default function PurchaseFormPage() {
         unit_price: item.agreed_price ?? item.last_purchase_price ?? 0,
         vat_rate: DEFAULT_VAT,
         product_name: item.name,
+        description: item.name,
         sku: item.sku,
         barcode: item.barcode,
         image_path: item.image_path ?? null,
@@ -334,6 +337,8 @@ export default function PurchaseFormPage() {
     }
     const [line] = await buildLines([{ product_id: productId, unit_id: product.base_unit_id, quantity: Number(getValues(`items.${index}.quantity`)) || 1, unit_price: 0 }])
     line.unit_price = line.agreed_price ?? 0
+    // Keep whatever was typed in the description; fall back to the item name.
+    line.description = getValues(`items.${index}.description`)?.trim() || product.name
     form.setValue(`items.${index}`, line, { shouldDirty: true })
   }
 
@@ -386,6 +391,7 @@ export default function PurchaseFormPage() {
         foreign_unit_price: getValues('currency_code') === 'AED' ? '' : Math.round((product.unitPrice / rate) * 10000) / 10000,
         vat_rate: DEFAULT_VAT,
         product_name: product.name,
+        description: product.name,
         sku: product.sku,
         barcode: product.barcode,
         image_path: product.imagePath,
@@ -428,6 +434,7 @@ export default function PurchaseFormPage() {
     )
     // The invoice prints a discount per line; the form keeps it per unit.
     result.items.forEach((i, idx) => {
+      built[idx].description = i.description || built[idx].description
       built[idx].vat_rate = i.vatRate
       built[idx].unit_discount = i.discount > 0 && i.quantity > 0 ? Math.round((i.discount / i.quantity) * 100) / 100 : ''
     })
@@ -951,7 +958,7 @@ export default function PurchaseFormPage() {
             variant="outline"
             className="border-primary/40 bg-primary/5 text-primary"
             onClick={() => {
-              append({ product_id: '', unit_id: '', pack_size: '', quantity: 1, foc_quantity: '', unit_price: 0, unit_discount: '', vat_rate: DEFAULT_VAT, agreed_price: null, last_purchase_price: null })
+              append({ product_id: '', unit_id: '', pack_size: '', quantity: 1, foc_quantity: '', unit_price: 0, unit_discount: '', vat_rate: DEFAULT_VAT, description: '', agreed_price: null, last_purchase_price: null })
             }}
           >
             <Plus /> Add item manually

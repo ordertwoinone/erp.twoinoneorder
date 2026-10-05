@@ -363,6 +363,7 @@ export interface Database {
           unit_discount: number
           foreign_unit_price: number | null
           landing_cost: number | null
+          description: string | null
           created_at: string
         }
         Insert: Partial<Database['public']['Tables']['purchase_items']['Row']> & {

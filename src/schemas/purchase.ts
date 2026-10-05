@@ -33,6 +33,8 @@ export const purchaseItemSchema = z.object({
   // Explicit `: boolean` — otherwise TS infers a type predicate and zod narrows
   // the output to 0 | 0.05, which no longer matches the form's input type.
   vat_rate: z.coerce.number().refine((v): boolean => v === 0 || v === 0.05, 'VAT must be 0% or 5%'),
+  /** Line description as typed / printed on the invoice; defaults to the item name. */
+  description: z.string().optional(),
   // Display-only metadata carried alongside the line for the New Purchase
   // page (from item search / previous purchases) — never sent to
   // save_purchase_draft beyond the fields above.

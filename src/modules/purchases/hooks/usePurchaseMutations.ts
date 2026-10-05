@@ -39,6 +39,7 @@ function buildPayload(input: PurchaseFormInput) {
       unit_discount: orNull(item.unit_discount) ?? 0,
       discount_amount: lines[index].discount,
       vat_rate: item.vat_rate,
+      description: item.description?.trim() || item.product_name || null,
     })),
     expenses: input.expenses.map((e) => ({ description: e.description, payee: orNull(e.payee), amount: e.amount })),
   }

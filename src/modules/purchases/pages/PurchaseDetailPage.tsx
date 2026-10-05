@@ -94,9 +94,12 @@ export default function PurchaseDetailPage() {
                     return (
                       <TableRow key={item.id} className={isAbove ? 'bg-warning/5' : undefined}>
                         <TableCell>
-                          {item.products?.name}
+                          {item.description || item.products?.name}
                           {item.products?.brands?.name && (
                             <span className="ml-1 text-xs text-muted-foreground">({item.products.brands.name})</span>
+                          )}
+                          {item.description && item.description !== item.products?.name && (
+                            <span className="block text-xs text-muted-foreground">Item: {item.products?.name}</span>
                           )}
                         </TableCell>
                         <TableCell>{item.units?.code}</TableCell>
