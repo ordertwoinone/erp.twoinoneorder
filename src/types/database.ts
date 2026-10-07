@@ -30,6 +30,9 @@ export interface Database {
           is_active: boolean
           daily_purchase_target: number | null
           daily_purchase_allowance: number | null
+          monthly_purchase_budget: number | null
+          bonus_good_amount: number | null
+          bonus_safe_amount: number | null
           created_at: string
           updated_at: string
         }
@@ -1361,6 +1364,8 @@ export interface Database {
           requested_by: string | null
           reviewed_by: string | null
           requested_at: string
+          needed_date: string | null
+          requested_by_employee_id: string | null
           created_at: string
           updated_at: string
         }
@@ -1372,6 +1377,13 @@ export interface Database {
             columns: ['restaurant_id']
             isOneToOne: false
             referencedRelation: 'restaurants'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'purchase_requests_requested_by_employee_id_fkey'
+            columns: ['requested_by_employee_id']
+            isOneToOne: false
+            referencedRelation: 'employees'
             referencedColumns: ['id']
           },
         ]
@@ -1386,6 +1398,7 @@ export interface Database {
           notes: string | null
           unit_price: number | null
           vat_rate: number
+          supplier_id: string | null
         }
         Insert: Partial<Database['public']['Tables']['purchase_request_items']['Row']> & {
           purchase_request_id: string
@@ -1395,6 +1408,13 @@ export interface Database {
         }
         Update: Partial<Database['public']['Tables']['purchase_request_items']['Row']>
         Relationships: [
+          {
+            foreignKeyName: 'purchase_request_items_supplier_id_fkey'
+            columns: ['supplier_id']
+            isOneToOne: false
+            referencedRelation: 'suppliers'
+            referencedColumns: ['id']
+          },
           {
             foreignKeyName: 'purchase_request_items_product_id_fkey'
             columns: ['product_id']
@@ -1881,8 +1901,41 @@ export interface Database {
         Returns: undefined
       }
       get_purchase_request_dashboard: {
-        Args: { p_restaurant_id: string; p_exclude_request_id?: string | null }
-        Returns: { daily_purchase_target: number | null; daily_purchase_allowance: number | null; requests_today: number; requests_today_count: number }[]
+        Args: { p_restaurant_id: string; p_date?: string; p_exclude_request_id?: string | null }
+        Returns: {
+          daily_purchase_target: number | null
+          monthly_purchase_budget: number | null
+          bonus_good_amount: number | null
+          bonus_safe_amount: number | null
+          day_total: number
+          day_count: number
+          month_total: number
+          price_variance_pct: number | null
+        }[]
+      }
+      list_request_employees: {
+        Args: { p_restaurant_id: string }
+        Returns: { employee_id: string; full_name: string; job_title: string | null; has_pin: boolean }[]
+      }
+      verify_request_pin: {
+        Args: { p_employee_id: string; p_pin: string }
+        Returns: { employee_id: string; full_name: string; job_title: string | null; category_ids: string[] | null }[]
+      }
+      set_employee_request_access: {
+        Args: { p_employee_id: string; p_pin: string | null; p_category_ids: string[] | null }
+        Returns: undefined
+      }
+      get_employee_request_access: {
+        Args: { p_employee_id: string }
+        Returns: { has_pin: boolean; category_ids: string[] | null }[]
+      }
+      toggle_request_pin: {
+        Args: { p_restaurant_id: string; p_product_id: string; p_pinned: boolean }
+        Returns: undefined
+      }
+      set_restaurant_purchase_budget: {
+        Args: { p_restaurant_id: string; p_daily_target: number | null; p_monthly_budget: number | null; p_bonus_good: number | null; p_bonus_safe: number | null }
+        Returns: undefined
       }
       get_request_catalog: {
         Args: { p_restaurant_id: string }
@@ -1897,6 +1950,9 @@ export interface Database {
           unit_code: string
           price: number | null
           times_purchased: number
+          pinned: boolean
+          price_change_pct: number | null
+          suppliers: Json
         }[]
       }
       review_purchase_request: {

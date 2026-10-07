@@ -8,12 +8,14 @@ export const purchaseRequestItemSchema = z.object({
   /** Estimated price per unit (last purchase price), when known. */
   unit_price: z.number().nullable().optional(),
   vat_rate: z.number().optional(),
+  supplier_id: z.string().nullable().optional(),
 })
 
 export const purchaseRequestFormSchema = z.object({
   id: z.string().uuid().optional(),
   restaurant_id: z.string().uuid('Select a restaurant'),
-  notes: z.string().optional().or(z.literal('')),
+  notes: z.string().max(300).optional().or(z.literal('')),
+  needed_date: z.string().optional().or(z.literal('')),
   items: z.array(purchaseRequestItemSchema).min(1, 'Add at least one item'),
 })
 

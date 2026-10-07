@@ -7,7 +7,7 @@ import { PageHeader } from '@/components/shared/PageHeader'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { FullScreenSpinner } from '@/components/shared/FullScreenSpinner'
 import { useAuth } from '@/hooks/useAuth'
-import { formatCurrency } from '@/lib/utils/format'
+import { formatCurrency, formatDate } from '@/lib/utils/format'
 import { usePurchaseRequestQuery, useReviewPurchaseRequest } from '../hooks/usePurchaseRequests'
 
 export default function PurchaseRequestDetailPage() {
@@ -29,7 +29,13 @@ export default function PurchaseRequestDetailPage() {
     <div className="space-y-6">
       <PageHeader
         title={`Request ${request.request_number}`}
-        description={request.restaurants?.name}
+        description={[
+          request.restaurants?.name,
+          request.needed_date ? `for ${formatDate(request.needed_date)}` : null,
+          request.employees?.full_name ? `requested by ${request.employees.full_name}` : null,
+        ]
+          .filter(Boolean)
+          .join(' · ')}
         actions={
           <div className="flex items-center gap-2">
             <StatusBadge status={request.status} />
@@ -54,6 +60,7 @@ export default function PurchaseRequestDetailPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Product</TableHead>
+                  <TableHead>Supplier</TableHead>
                   <TableHead>Unit</TableHead>
                   <TableHead className="text-right">Quantity</TableHead>
                   <TableHead className="text-right">Price</TableHead>
@@ -64,6 +71,7 @@ export default function PurchaseRequestDetailPage() {
                 {items.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell>{item.products?.name}</TableCell>
+                    <TableCell className="text-muted-foreground">{item.suppliers?.name ?? '—'}</TableCell>
                     <TableCell>{item.units?.code}</TableCell>
                     <TableCell className="text-right tabular-nums">{item.quantity}</TableCell>
                     <TableCell className="text-right tabular-nums">{item.unit_price != null ? formatCurrency(item.unit_price) : '—'}</TableCell>
