@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Controller, useForm } from 'react-hook-form'
+import { Controller, useForm, useWatch } from 'react-hook-form'
 import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -45,6 +45,8 @@ export default function ExpenseFormPage() {
       notes: '',
     },
   })
+
+  const restaurantId = useWatch({ control, name: 'restaurant_id' })
 
   useEffect(() => {
     if (!existing) return
@@ -97,24 +99,47 @@ export default function ExpenseFormPage() {
               {errors.restaurant_id && <p className="text-sm text-destructive">{errors.restaurant_id.message}</p>}
             </div>
             <div className="space-y-2">
-              <Label>Category</Label>
+              <div className="flex items-center justify-between">
+                <Label>Expense head</Label>
+                <Link to="/expenses/heads" className="text-xs font-medium text-primary hover:underline">
+                  Manage heads
+                </Link>
+              </div>
               <Controller
                 control={control}
                 name="expense_category_id"
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories?.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
+                render={({ field }) => {
+                  // Shared heads plus the selected restaurant's own (keep the saved one when editing).
+                  const heads = (categories ?? []).filter(
+                    (c) => !c.restaurant_id || c.restaurant_id === restaurantId || c.id === field.value,
+                  )
+                  const selected = heads.find((c) => c.id === field.value)
+                  return (
+                    <>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <SelectTrigger>
+                          <SelectValue placeholder={restaurantId ? 'Select expense head' : 'Select a restaurant first'} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {heads.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {selected && (
+                        <p className="text-xs text-muted-foreground">
+                          Ledger:{' '}
+                          {selected.accounting_accounts
+                            ? `${selected.accounting_accounts.code} · ${selected.accounting_accounts.name}`
+                            : '5200 · Operating Expenses'}
+                          {selected.description && ` — ${selected.description}`}
+                        </p>
+                      )}
+                    </>
+                  )
+                }}
               />
               {errors.expense_category_id && (
                 <p className="text-sm text-destructive">{errors.expense_category_id.message}</p>

@@ -33,7 +33,7 @@ export default function ExpensesListPage() {
       { accessorKey: 'expense_number', header: 'Expense #' },
       {
         accessorKey: 'expense_categories.name',
-        header: 'Category',
+        header: 'Expense head',
         cell: ({ row }) => row.original.expense_categories?.name ?? '—',
       },
       { accessorKey: 'expense_date', header: 'Date', cell: ({ getValue }) => formatDate(getValue() as string) },

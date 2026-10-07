@@ -750,10 +750,34 @@ export interface Database {
         Relationships: []
       }
       expense_categories: {
-        Row: { id: string; name: string; is_head_office_only: boolean; is_active: boolean }
+        Row: {
+          id: string
+          name: string
+          is_head_office_only: boolean
+          is_active: boolean
+          description: string | null
+          ledger_account_id: string | null
+          restaurant_id: string | null
+          created_at: string
+        }
         Insert: Partial<Database['public']['Tables']['expense_categories']['Row']> & { name: string }
         Update: Partial<Database['public']['Tables']['expense_categories']['Row']>
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'expense_categories_ledger_account_id_fkey'
+            columns: ['ledger_account_id']
+            isOneToOne: false
+            referencedRelation: 'accounting_accounts'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'expense_categories_restaurant_id_fkey'
+            columns: ['restaurant_id']
+            isOneToOne: false
+            referencedRelation: 'restaurants'
+            referencedColumns: ['id']
+          },
+        ]
       }
       payment_vouchers: {
         Row: {
@@ -1639,7 +1663,16 @@ export interface Database {
         ]
       }
       accounting_accounts: {
-        Row: { id: string; code: string; name: string; account_type: string; parent_id: string | null; is_active: boolean }
+        Row: {
+          id: string
+          code: string
+          name: string
+          account_type: string
+          parent_id: string | null
+          is_active: boolean
+          restaurant_id: string | null
+          description: string | null
+        }
         Insert: { id?: string; code: string; name: string; account_type: string; parent_id?: string | null; is_active?: boolean }
         Update: Partial<Database['public']['Tables']['accounting_accounts']['Row']>
         Relationships: []
@@ -2020,6 +2053,31 @@ export interface Database {
       }
       set_product_image: {
         Args: { p_product_id: string; p_image_path: string | null }
+        Returns: undefined
+      }
+      list_ledgers: {
+        Args: { p_restaurant_id?: string | null }
+        Returns: {
+          id: string
+          code: string
+          name: string
+          account_type: string
+          restaurant_id: string | null
+          restaurant_name: string | null
+          is_active: boolean
+          description: string | null
+        }[]
+      }
+      create_ledger: {
+        Args: { p_name: string; p_restaurant_id?: string | null; p_account_type?: string; p_code?: string | null; p_description?: string | null }
+        Returns: string
+      }
+      save_expense_head: {
+        Args: { payload: Json }
+        Returns: string
+      }
+      delete_expense_head: {
+        Args: { p_id: string }
         Returns: undefined
       }
       quick_create_brand: {

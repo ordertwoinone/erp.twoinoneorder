@@ -38,7 +38,7 @@ export function useExpenseCategoriesOptions() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('expense_categories')
-        .select('id, name')
+        .select('id, name, description, restaurant_id, accounting_accounts!expense_categories_ledger_account_id_fkey(code, name)')
         .eq('is_active', true)
         .order('name')
       if (error) throw error

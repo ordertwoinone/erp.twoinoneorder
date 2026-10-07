@@ -18,6 +18,7 @@ import {
   Receipt,
   Settings,
   ShoppingCart,
+  Tags,
   Truck,
   UserCog,
   Users,
@@ -67,6 +68,7 @@ export const navSections: NavSection[] = [
     items: [
       { label: 'Payments', to: '/payments', icon: Wallet, permission: 'payments.create' },
       { label: 'Expenses', to: '/expenses', icon: Banknote, permission: 'expenses.manage' },
+      { label: 'Expense Heads', to: '/expenses/heads', icon: Tags, permission: 'expenses.manage' },
       { label: 'Accounting', to: '/accounting', icon: FileBarChart, permission: 'accounting.view' },
     ],
   },

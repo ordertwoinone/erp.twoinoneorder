@@ -61,6 +61,7 @@ const moduleRoutes: ModuleRoute[] = [
   { path: '/employees/:id', permission: 'employees.manage', Component: lazy(() => import('@/modules/employees/pages/EmployeeRecordPage')) },
 
   { path: '/expenses', permission: 'expenses.manage', Component: lazy(() => import('@/modules/expenses/pages/ExpensesListPage')) },
+  { path: '/expenses/heads', permission: 'expenses.manage', Component: lazy(() => import('@/modules/expenses/pages/ExpenseHeadsPage')) },
   { path: '/expenses/new', permission: 'expenses.manage', Component: lazy(() => import('@/modules/expenses/pages/ExpenseFormPage')) },
   { path: '/expenses/:id', permission: 'expenses.manage', Component: lazy(() => import('@/modules/expenses/pages/ExpenseDetailPage')) },
   { path: '/expenses/:id/edit', permission: 'expenses.manage', Component: lazy(() => import('@/modules/expenses/pages/ExpenseFormPage')) },
