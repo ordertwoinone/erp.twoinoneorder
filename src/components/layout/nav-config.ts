@@ -16,7 +16,6 @@ import {
   MapPin,
   PackageCheck,
   PackageMinus,
-  PackageSearch,
   Palette,
   Receipt,
   Settings,
@@ -53,7 +52,6 @@ export const navSections: NavSection[] = [
     items: [
       { label: 'New Purchase', to: '/purchases/new', icon: FilePlus2, permission: 'purchases.create' },
       { label: 'Purchase Requests', to: '/purchases/requests', icon: ClipboardList, permission: 'purchases.create' },
-      { label: 'Purchase Orders', to: '/purchases/orders', icon: PackageSearch, permission: 'purchase_orders.manage' },
       { label: 'Goods Receiving', to: '/purchases/receipts', icon: PackageCheck, permission: 'purchases.create' },
       { label: 'Invoices', to: '/purchases', icon: ShoppingCart, permission: 'purchases.create' },
       { label: 'Suppliers', to: '/suppliers', icon: Truck, permission: 'suppliers.manage' },

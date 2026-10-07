@@ -6,7 +6,6 @@ import {
   MapPin,
   PackageMinus,
   PackagePlus,
-  PackageSearch,
   SlidersHorizontal,
   Trash2,
   type LucideIcon,
@@ -24,7 +23,6 @@ interface Tile {
 
 const tiles: Tile[] = [
   { label: 'Location', to: '/inventory/locations', icon: MapPin, tone: 'text-red-500', permission: 'inventory.manage' },
-  { label: 'Purchase Order', to: '/purchases/orders', icon: PackageSearch, tone: 'text-amber-600', permission: 'purchase_orders.manage' },
   { label: 'Purchase', to: '/purchases', icon: PackagePlus, tone: 'text-emerald-600', permission: 'purchases.create' },
   { label: 'Purchase Return', to: '/inventory/purchase-returns', icon: PackageMinus, tone: 'text-rose-600', permission: 'purchases.create' },
   { label: 'Wastage', to: '/inventory/wastage', icon: Trash2, tone: 'text-slate-500', permission: 'inventory.manage' },

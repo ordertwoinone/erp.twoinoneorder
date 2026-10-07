@@ -1,4 +1,4 @@
-import { ChevronRight, ClipboardList, PackageCheck, Receipt, RefreshCw, ShoppingCart, UserCheck, Wallet } from 'lucide-react'
+import { ChevronRight, ClipboardList, PackageCheck, Receipt, RefreshCw, UserCheck, Wallet } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Card } from '@/components/ui/card'
@@ -20,7 +20,6 @@ interface Stage {
 
 const STAGES: Stage[] = [
   { key: 'request_count', label: 'Request', icon: ClipboardList, to: '/purchases/requests' },
-  { key: 'order_count', label: 'Order', icon: ShoppingCart, to: '/purchases/orders', permission: 'purchase_orders.manage' },
   { key: 'receive_count', label: 'Receive', icon: PackageCheck, to: '/purchases/receipts' },
   { key: 'invoice_count', label: 'Invoice', icon: Receipt, to: '/purchases' },
   {
