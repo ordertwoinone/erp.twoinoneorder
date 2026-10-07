@@ -113,7 +113,8 @@ grant execute on function public.set_restaurant_purchase_targets(uuid, numeric, 
 -- requests_today: value (incl. VAT) of requests sent today, excluding drafts,
 -- rejected and cancelled ones. p_exclude_request_id leaves out the request
 -- being edited so the screen can add its live total instead.
-create or replace function public.get_purchase_request_dashboard(p_restaurant_id uuid, p_exclude_request_id uuid default null)
+drop function if exists public.get_purchase_request_dashboard(uuid, uuid);
+create function public.get_purchase_request_dashboard(p_restaurant_id uuid, p_exclude_request_id uuid default null)
 returns table (daily_purchase_target numeric, daily_purchase_allowance numeric, requests_today numeric, requests_today_count bigint)
 language plpgsql
 stable
@@ -148,7 +149,9 @@ grant execute on function public.get_purchase_request_dashboard(uuid, uuid) to a
 -- Every active item, with this restaurant's last purchase price (falling back
 -- to the lowest current locked price) and how often it's been bought here, so
 -- the screen can show the usual items first.
-create or replace function public.get_request_catalog(p_restaurant_id uuid)
+-- Dropped first so this file can be re-run even after 0056 changed the return columns.
+drop function if exists public.get_request_catalog(uuid);
+create function public.get_request_catalog(p_restaurant_id uuid)
 returns table (
   product_id uuid,
   name text,
