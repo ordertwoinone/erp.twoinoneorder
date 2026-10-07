@@ -303,6 +303,7 @@ grant execute on function public.save_purchase_request(jsonb) to authenticated;
 -- was sent. Drafts, rejected and cancelled requests never count. The request
 -- being edited is left out so the screen can add its live total.
 drop function if exists public.get_purchase_request_dashboard(uuid, uuid);
+drop function if exists public.get_purchase_request_dashboard(uuid, date, uuid);
 
 create function public.get_purchase_request_dashboard(p_restaurant_id uuid, p_date date default current_date, p_exclude_request_id uuid default null)
 returns table (
