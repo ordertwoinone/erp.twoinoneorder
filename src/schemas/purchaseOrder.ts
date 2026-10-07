@@ -4,6 +4,7 @@ export const purchaseOrderItemSchema = z.object({
   product_id: z.string().uuid('Select a product'),
   unit_id: z.string().uuid('Select a unit'),
   pack_size: z.coerce.number().min(0).optional().or(z.literal('')),
+  pack_unit_id: z.string().optional().or(z.literal('')),
   quantity: z.coerce.number().gt(0, 'Quantity must be greater than 0'),
   unit_price: z.coerce.number().min(0, 'Price cannot be negative'),
 })

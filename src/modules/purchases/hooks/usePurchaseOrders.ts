@@ -37,7 +37,7 @@ export function usePurchaseOrderQuery(id: string | undefined) {
     queryFn: async () => {
       const [orderRes, itemsRes] = await Promise.all([
         supabase.from('purchase_orders').select('*, restaurants(name), suppliers(name)').eq('id', id!).single(),
-        supabase.from('purchase_order_items').select('*, products(name, sku), units(name, code)').eq('purchase_order_id', id!),
+        supabase.from('purchase_order_items').select('*, products(name, sku), units!unit_id(name, code), pack_unit:units!pack_unit_id(code)').eq('purchase_order_id', id!),
       ])
       if (orderRes.error) throw orderRes.error
       if (itemsRes.error) throw itemsRes.error
@@ -77,6 +77,7 @@ function buildPayload(input: PurchaseOrderFormInput) {
       product_id: item.product_id,
       unit_id: item.unit_id,
       pack_size: item.pack_size === '' ? null : item.pack_size,
+      pack_unit_id: item.pack_unit_id || null,
       quantity: item.quantity,
       unit_price: item.unit_price,
     })),

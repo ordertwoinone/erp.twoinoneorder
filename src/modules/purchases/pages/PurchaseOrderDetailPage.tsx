@@ -66,7 +66,7 @@ export default function PurchaseOrderDetailPage() {
                   <TableRow key={item.id}>
                     <TableCell>{item.products?.name}</TableCell>
                     <TableCell>{item.units?.code}</TableCell>
-                    <TableCell className="text-right tabular-nums">{item.pack_size ? `${Number(item.pack_size)} ${item.units?.code ?? ''}` : '—'}</TableCell>
+                    <TableCell className="text-right tabular-nums">{item.pack_size ? `${Number(item.pack_size)} ${item.pack_unit?.code ?? 'PCS'}` : '—'}</TableCell>
                     <TableCell className="text-right tabular-nums">{item.quantity}</TableCell>
                     <TableCell
                       className={`text-right tabular-nums ${item.quantity_received >= item.quantity ? 'text-success' : item.quantity_received > 0 ? 'text-warning-foreground' : 'text-muted-foreground'}`}

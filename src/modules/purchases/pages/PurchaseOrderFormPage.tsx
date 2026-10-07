@@ -19,7 +19,7 @@ import { purchaseOrderFormSchema, type PurchaseOrderFormInput } from '@/schemas/
 import { usePurchaseRequestQuery } from '@/modules/purchase-requests/hooks/usePurchaseRequests'
 import { usePurchaseOrderQuery, useSavePurchaseOrder } from '../hooks/usePurchaseOrders'
 
-const emptyItem = { product_id: '', unit_id: '', pack_size: '' as const, quantity: 1, unit_price: 0 }
+const emptyItem = { product_id: '', unit_id: '', pack_size: '' as const, pack_unit_id: '', quantity: 1, unit_price: 0 }
 
 export default function PurchaseOrderFormPage() {
   const { id } = useParams<{ id: string }>()
@@ -75,6 +75,7 @@ export default function PurchaseOrderFormPage() {
         product_id: item.product_id,
         unit_id: item.unit_id,
         pack_size: item.pack_size ?? '',
+        pack_unit_id: item.pack_unit_id ?? '',
         quantity: item.quantity,
         unit_price: item.unit_price,
       })),
@@ -91,6 +92,7 @@ export default function PurchaseOrderFormPage() {
         product_id: item.product_id,
         unit_id: item.unit_id,
         pack_size: '',
+        pack_unit_id: '',
         quantity: item.quantity,
         unit_price: 0,
       })),
@@ -208,6 +210,8 @@ export default function PurchaseOrderFormPage() {
                             if (!items[index]?.unit_id) setValue(`items.${index}.unit_id`, product.base_unit_id)
                             if (items[index]?.pack_size === '' || items[index]?.pack_size == null)
                               setValue(`items.${index}.pack_size`, product.pack_size ?? '')
+                            if (!items[index]?.pack_unit_id && product.pack_unit_id)
+                              setValue(`items.${index}.pack_unit_id`, product.pack_unit_id)
                           }
                         }}
                       >
@@ -250,21 +254,40 @@ export default function PurchaseOrderFormPage() {
                   <Label className="mb-1 text-xs text-muted-foreground" htmlFor={`items.${index}.pack_size`}>
                     Measurement
                   </Label>
-                  <div className="relative">
+                  <div className="flex">
                     <Input
                       id={`items.${index}.pack_size`}
                       type="number"
                       step="0.001"
                       min="0"
                       placeholder="e.g. 24"
-                      className="pr-16"
+                      className="min-w-0 rounded-r-none"
                       {...register(`items.${index}.pack_size`)}
                     />
-                    <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-xs text-muted-foreground">
-                      {items[index]?.unit_id ? `per ${units?.find((u) => u.id === items[index]?.unit_id)?.code ?? ''}` : ''}
-                    </span>
+                    <Controller
+                      control={control}
+                      name={`items.${index}.pack_unit_id`}
+                      render={({ field: f }) => (
+                        <Select value={f.value ?? ''} onValueChange={f.onChange}>
+                          <SelectTrigger className="w-24 shrink-0 rounded-l-none border-l-0" aria-label="Measurement unit">
+                            <SelectValue placeholder="PCS" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {units?.map((u) => (
+                              <SelectItem key={u.id} value={u.id}>
+                                {u.code}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
                   </div>
-                  <p className="mt-1 text-[11px] text-muted-foreground">Size per unit (e.g. 24 pcs, 5 kg)</p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {items[index]?.pack_size && items[index]?.unit_id
+                      ? `1 ${units?.find((u) => u.id === items[index]?.unit_id)?.code ?? 'unit'} = ${items[index]?.pack_size} ${units?.find((u) => u.id === items[index]?.pack_unit_id)?.code ?? 'PCS'}`
+                      : 'Pieces or weight in one unit'}
+                  </p>
                 </div>
                 <div>
                   <Label className="mb-1 text-xs text-muted-foreground">Qty</Label>

@@ -59,7 +59,7 @@ export function usePurchaseOrderOutstandingItemsQuery(purchaseOrderId: string | 
     queryFn: async () => {
       const { data, error } = await supabase
         .from('purchase_order_items')
-        .select('*, products(name, sku), units(name, code)')
+        .select('*, products(name, sku), units!unit_id(name, code)')
         .eq('purchase_order_id', purchaseOrderId!)
       if (error) throw error
       return data.filter((item) => item.quantity_received < item.quantity)

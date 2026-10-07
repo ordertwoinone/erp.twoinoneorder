@@ -457,6 +457,7 @@ export interface Database {
           product_id: string
           unit_id: string
           pack_size: number | null
+          pack_unit_id: string | null
           quantity: number
           unit_price: number
           quantity_received: number
@@ -480,6 +481,13 @@ export interface Database {
           {
             foreignKeyName: 'purchase_order_items_unit_id_fkey'
             columns: ['unit_id']
+            isOneToOne: false
+            referencedRelation: 'units'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'purchase_order_items_pack_unit_id_fkey'
+            columns: ['pack_unit_id']
             isOneToOne: false
             referencedRelation: 'units'
             referencedColumns: ['id']

@@ -241,7 +241,7 @@ export default function PurchaseFormPage() {
     if (missing.length) {
       const { data } = await supabase
         .from('products')
-        .select('id, sku, barcode, name, base_unit_id, pack_size, image_path, brands(name), categories(name)')
+        .select('id, sku, barcode, name, base_unit_id, pack_size, pack_unit_id, image_path, brands(name), categories(name)')
         .in('id', missing)
       for (const p of data ?? []) fetched.set(p.id, p)
     }

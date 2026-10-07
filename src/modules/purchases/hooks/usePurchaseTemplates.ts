@@ -56,7 +56,7 @@ export function usePurchaseTemplatesQuery(supplierId: string | null, restaurantI
 }
 
 export async function fetchTemplateLines(source: TemplateSource): Promise<TemplateLine[]> {
-  const select = 'product_id, unit_id, quantity, unit_price, pack_size, units(code), products(name, brands(name), categories(name))'
+  const select = 'product_id, unit_id, quantity, unit_price, pack_size, units!unit_id(code), products(name, brands(name), categories(name))'
   const { data, error } =
     source.kind === 'purchase'
       ? await supabase.from('purchase_items').select(select).eq('purchase_id', source.id)
