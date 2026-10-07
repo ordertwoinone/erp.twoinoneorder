@@ -40,6 +40,11 @@ function buildPayload(input: PurchaseFormInput) {
       discount_amount: lines[index].discount,
       vat_rate: item.vat_rate,
       description: item.description?.trim() || item.product_name || null,
+      piece_weight: orNull(item.piece_weight),
+      piece_weight_unit_id: item.piece_weight_unit_id || null,
+      price_basis: item.price_basis ?? 'unit',
+      basis_rate: item.price_basis && item.price_basis !== 'unit' ? orNull(item.basis_rate) : null,
+      stock_factor: item.stock_factor ?? 1,
     })),
     expenses: input.expenses.map((e) => ({ description: e.description, payee: orNull(e.payee), amount: e.amount })),
   }

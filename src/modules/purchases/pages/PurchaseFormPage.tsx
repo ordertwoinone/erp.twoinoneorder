@@ -56,6 +56,7 @@ import { ItemSearchCombobox, packText } from '../components/ItemSearchCombobox'
 import { AddNewItemDialog } from '../components/AddNewItemDialog'
 import { InvoiceScanDialog, type ScannedInvoiceResult } from '../components/InvoiceScanDialog'
 import { PurchaseLineItemRow } from '../components/PurchaseLineItemRow'
+import { computePackaging } from '../packaging'
 import { InvoiceSummaryCard, NotesCard, OtherExpensesCard, SupplierQuoteComparison } from '../components/InvoiceSummarySidebar'
 import { ImportTemplateDialog } from '../components/ImportTemplateDialog'
 
@@ -146,7 +147,9 @@ export default function PurchaseFormPage() {
   const paymentMode = watch('payment_mode')
   const otherExpenses = expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0)
   const billDiscount = effectiveBillDiscount(items, invoiceDiscount, billPercent)
-  const lines = useMemo(() => computeLines(items, billDiscount, { taxDisabled, otherExpenses }), [items, billDiscount, taxDisabled, otherExpenses])
+  // Not memoised: watch('items') is the same array mutated in place, so a memo
+  // keyed on it would keep showing stale totals after a line changes.
+  const lines = computeLines(items, billDiscount, { taxDisabled, otherExpenses })
   const totals = sumLines(lines, otherExpenses)
   const itemsAboveContract = items.filter((i) => i.agreed_price != null && i.agreed_price > 0 && (Number(i.unit_price) || 0) > i.agreed_price * 1.005)
   const selectedSupplier = suppliers.find((s) => s.id === supplierId)
@@ -189,6 +192,10 @@ export default function PurchaseFormPage() {
           unit_price: item.unit_price,
           foreign_unit_price: item.foreign_unit_price ?? '',
           unit_discount: item.unit_discount ? Number(item.unit_discount) : '',
+          piece_weight: item.piece_weight != null ? Number(item.piece_weight) : '',
+          piece_weight_unit_id: item.piece_weight_unit_id ?? null,
+          price_basis: item.price_basis ?? 'unit',
+          basis_rate: item.basis_rate != null ? Number(item.basis_rate) : '',
           vat_rate: purchase.tax_disabled ? 0.05 : net > 0 && item.tax_amount / net > 0.025 ? 0.05 : 0,
           product_name: item.products?.name,
           description: item.description ?? item.products?.name ?? '',
@@ -241,7 +248,7 @@ export default function PurchaseFormPage() {
     if (missing.length) {
       const { data } = await supabase
         .from('products')
-        .select('id, sku, barcode, name, base_unit_id, pack_size, pack_unit_id, image_path, brands(name), categories(name)')
+        .select('id, sku, barcode, name, base_unit_id, pack_size, pack_unit_id, piece_weight, piece_weight_unit_id, image_path, brands(name), categories(name)')
         .in('id', missing)
       for (const p of data ?? []) fetched.set(p.id, p)
     }
@@ -253,6 +260,9 @@ export default function PurchaseFormPage() {
         product_id: r.product_id,
         unit_id: r.unit_id,
         pack_size: pack ?? '',
+        piece_weight: product?.piece_weight ?? '',
+        piece_weight_unit_id: product?.piece_weight_unit_id ?? null,
+        price_basis: 'unit',
         quantity: r.quantity,
         unit_price: r.unit_price,
         vat_rate: DEFAULT_VAT,
@@ -305,6 +315,9 @@ export default function PurchaseFormPage() {
         product_id: item.product_id,
         unit_id: item.base_unit_id,
         pack_size: item.pack_size ?? '',
+        piece_weight: productsById.get(item.product_id)?.piece_weight ?? '',
+        piece_weight_unit_id: productsById.get(item.product_id)?.piece_weight_unit_id ?? null,
+        price_basis: 'unit',
         quantity: 1,
         unit_price: item.agreed_price ?? item.last_purchase_price ?? 0,
         vat_rate: DEFAULT_VAT,
@@ -498,9 +511,25 @@ export default function PurchaseFormPage() {
     setAttachmentFile(null)
   }
 
+  /** Adds each line's conversion to the item's stock unit (from its packaging) before saving. */
+  function withStockFactors(values: PurchaseFormInput): PurchaseFormInput {
+    return {
+      ...values,
+      items: values.items.map((it) => ({
+        ...it,
+        stock_factor: computePackaging(it, unitsById.get(it.unit_id), stockUnitFor(it.product_id), unitsById).stockFactor,
+      })),
+    }
+  }
+
+  function stockUnitFor(productId: string) {
+    const product = productsById.get(productId)
+    return product ? unitsById.get(product.base_unit_id) : undefined
+  }
+
   /** Save & New: saves the draft, then starts a fresh invoice for the same restaurant. */
   async function onSaveAndNew(values: PurchaseFormInput) {
-    const purchaseId = await saveDraft.mutateAsync({ values, scanResultId })
+    const purchaseId = await saveDraft.mutateAsync({ values: withStockFactors(values), scanResultId })
     await uploadPendingAttachment(purchaseId)
     setScanResultId(null)
     if (isEditing) navigate('/purchases/new')
@@ -510,18 +539,18 @@ export default function PurchaseFormPage() {
 
   /** Save & Close: saves the draft and returns to the invoice list. */
   async function onSaveAndClose(values: PurchaseFormInput) {
-    const purchaseId = await saveDraft.mutateAsync({ values, scanResultId })
+    const purchaseId = await saveDraft.mutateAsync({ values: withStockFactors(values), scanResultId })
     await uploadPendingAttachment(purchaseId)
     navigate('/purchases')
   }
 
   async function onSubmitForApproval(values: PurchaseFormInput) {
-    const purchaseId = await submitForApproval.mutateAsync({ values, scanResultId })
+    const purchaseId = await submitForApproval.mutateAsync({ values: withStockFactors(values), scanResultId })
     await uploadPendingAttachment(purchaseId)
   }
 
   async function onPost(values: PurchaseFormInput) {
-    const purchaseId = await postNow.mutateAsync({ values, scanResultId }).catch(() => null)
+    const purchaseId = await postNow.mutateAsync({ values: withStockFactors(values), scanResultId }).catch(() => null)
     if (purchaseId) await uploadPendingAttachment(purchaseId)
   }
 
@@ -935,6 +964,8 @@ export default function PurchaseFormPage() {
                     form={form}
                     line={lines[index] ?? EMPTY_LINE}
                     units={units}
+                    unitsById={unitsById}
+                    stockUnit={stockUnitFor(items[index]?.product_id)}
                     products={products}
                     previous={previousPrices?.get(items[index]?.product_id)}
                     previousLoading={previousLoading}

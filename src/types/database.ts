@@ -269,6 +269,8 @@ export interface Database {
           base_unit_id: string
           pack_size: number | null
           pack_unit_id: string | null
+          piece_weight: number | null
+          piece_weight_unit_id: string | null
           image_path: string | null
           is_active: boolean
           created_by: string | null
@@ -371,6 +373,12 @@ export interface Database {
           foreign_unit_price: number | null
           landing_cost: number | null
           description: string | null
+          piece_weight: number | null
+          piece_weight_unit_id: string | null
+          price_basis: 'unit' | 'piece' | 'weight'
+          basis_rate: number | null
+          stock_factor: number
+          stock_quantity: number | null
           created_at: string
         }
         Insert: Partial<Database['public']['Tables']['purchase_items']['Row']> & {

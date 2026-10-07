@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import type { UseFormReturn } from 'react-hook-form'
 import { Controller } from 'react-hook-form'
 import { format, parseISO } from 'date-fns'
-import { ArrowDown, ArrowUp, CheckCircle2, History, Lock, MoreVertical, RotateCcw, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, CheckCircle2, ChevronDown, ChevronUp, History, Lock, MoreVertical, Package, RotateCcw, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
@@ -14,6 +14,8 @@ import { cn } from '@/lib/utils'
 import { VAT_RATES, type LineTotals, type PurchaseFormInput } from '@/schemas/purchase'
 import type { PreviousPrice } from '../hooks/usePreviousPrices'
 import { ItemThumb } from './ItemThumb'
+import { PurchasePackagingPanel } from './PurchasePackagingPanel'
+import { computePackaging, qty, type UnitLike } from '../packaging'
 
 const money = (n: number) => n.toLocaleString('en-AE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const shortDate = (d: string | null) => (d ? format(parseISO(d), 'd MMM yy') : '')
@@ -212,6 +214,8 @@ export function PurchaseLineItemRow({
   form,
   line,
   units,
+  unitsById,
+  stockUnit,
   products,
   previous,
   previousLoading,
@@ -227,6 +231,9 @@ export function PurchaseLineItemRow({
   form: UseFormReturn<PurchaseFormInput>
   line: LineTotals
   units: UnitOption[]
+  unitsById: Map<string, UnitLike>
+  /** The item's stock unit (what stock is counted in, e.g. kg). */
+  stockUnit: UnitLike | undefined
   products: ProductOption[]
   previous: PreviousPrice | undefined
   previousLoading: boolean
@@ -249,203 +256,263 @@ export function PurchaseLineItemRow({
   const isAbove = pct !== null && pct > 0.5
   const isBelow = pct !== null && pct < -0.5
   const foreign = currencyCode !== 'AED'
+  const basis = item?.price_basis ?? 'unit'
+  const pack = item ? computePackaging(item, unitsById.get(item.unit_id), stockUnit, unitsById) : null
+  const converted = !!pack && !!stockUnit && pack.stockFactor !== 1
+  const [expanded, setExpanded] = useState(() => !!item && (Number(item.pack_size) > 1 || Number(item.piece_weight) > 0 || basis !== 'unit'))
   const setPrice = (value: number) => {
+    setValue(`items.${index}.price_basis`, 'unit')
     setValue(`items.${index}.unit_price`, value, { shouldDirty: true })
     if (foreign && exchangeRate > 0) setValue(`items.${index}.foreign_unit_price`, Math.round((value / exchangeRate) * 10000) / 10000)
   }
 
   return (
-    <TableRow className={cn('align-top', isAbove && 'bg-warning/5')}>
-      {/* Same order as a supplier tax invoice: code, description, UOM, qty, rate, discount, amounts, VAT. */}
-      <TableCell className="pt-4 text-muted-foreground">{index + 1}</TableCell>
-      <TableCell className="min-w-24 pt-4 text-xs tabular-nums">
-        {item?.sku || item?.barcode ? (
-          <>
-            <p className="font-medium">{item.sku || item.barcode}</p>
-            {item.sku && item.barcode && <p className="text-muted-foreground">{item.barcode}</p>}
-          </>
-        ) : (
-          <span className="text-muted-foreground">—</span>
+    <Fragment>
+      <TableRow className={cn('align-top', isAbove && 'bg-warning/5', expanded && 'border-b-0')}>
+        {/* Same order as a supplier tax invoice: code, description, UOM, qty, rate, discount, amounts, VAT. */}
+        <TableCell className="pt-4 text-muted-foreground">{index + 1}</TableCell>
+        <TableCell className="min-w-24 pt-4 text-xs tabular-nums">
+          {item?.sku || item?.barcode ? (
+            <>
+              <p className="font-medium">{item.sku || item.barcode}</p>
+              {item.sku && item.barcode && <p className="text-muted-foreground">{item.barcode}</p>}
+            </>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          )}
+        </TableCell>
+        <TableCell className="min-w-64">
+          <DescriptionCell index={index} form={form} products={products} onPickProduct={onPickProduct} />
+          {item?.product_id && pack && (
+            <button
+              type="button"
+              onClick={() => setExpanded((v) => !v)}
+              className={cn(
+                'mt-1 inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] hover:bg-muted',
+                converted ? 'border-primary/30 bg-primary/5 text-primary' : 'text-muted-foreground',
+              )}
+              title="Packaging and stock conversion"
+            >
+              <Package className="size-3" />
+              {converted
+                ? `${qty(pack.unitsReceived)} ${item.unit_code ?? ''} → ${qty(pack.stockQuantity)} ${stockUnit?.code ?? ''} in stock`
+                : 'Packaging'}
+            </button>
+          )}
+        </TableCell>
+        <TableCell className="w-28">
+          <Select value={item?.unit_id || undefined} onValueChange={(v) => onUnitChange(index, v)}>
+            <SelectTrigger className="h-9 w-24" title={units.find((u) => u.id === item?.unit_id)?.name}>
+              <SelectValue placeholder="UOM" />
+            </SelectTrigger>
+            <SelectContent>
+              {units.map((u) => (
+                <SelectItem key={u.id} value={u.id}>
+                  {u.name} ({u.code})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </TableCell>
+        <TableCell className="w-20">
+          <Controller
+            control={control}
+            name={`items.${index}.quantity`}
+            render={({ field }) => <Input type="number" step="0.001" min="0" className="h-9 w-16" aria-invalid={!!errors?.quantity} {...field} />}
+          />
+        </TableCell>
+        {foreign && (
+          <TableCell className="w-28">
+            <Controller
+              control={control}
+              name={`items.${index}.foreign_unit_price`}
+              render={({ field }) => (
+                <Input
+                  type="number"
+                  step="0.0001"
+                  min="0"
+                  className="h-9 w-24 text-right tabular-nums"
+                  {...field}
+                  value={field.value ?? ''}
+                  onChange={(e) => {
+                    field.onChange(e.target.value)
+                    const v = Number(e.target.value)
+                    setValue(`items.${index}.unit_price`, Number.isFinite(v) ? Math.round(v * exchangeRate * 100) / 100 : 0, { shouldDirty: true })
+                  }}
+                />
+              )}
+            />
+          </TableCell>
         )}
-      </TableCell>
-      <TableCell className="min-w-64">
-        <DescriptionCell index={index} form={form} products={products} onPickProduct={onPickProduct} />
-      </TableCell>
-      <TableCell className="w-28">
-        <Select value={item?.unit_id || undefined} onValueChange={(v) => onUnitChange(index, v)}>
-          <SelectTrigger className="h-9 w-24" title={units.find((u) => u.id === item?.unit_id)?.name}>
-            <SelectValue placeholder="UOM" />
-          </SelectTrigger>
-          <SelectContent>
-            {units.map((u) => (
-              <SelectItem key={u.id} value={u.id}>
-                {u.name} ({u.code})
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </TableCell>
-      <TableCell className="w-20">
-        <Controller
-          control={control}
-          name={`items.${index}.quantity`}
-          render={({ field }) => <Input type="number" step="0.001" min="0" className="h-9 w-16" aria-invalid={!!errors?.quantity} {...field} />}
-        />
-      </TableCell>
-      {foreign && (
         <TableCell className="w-28">
           <Controller
             control={control}
-            name={`items.${index}.foreign_unit_price`}
+            name={`items.${index}.unit_price`}
             render={({ field }) => (
               <Input
                 type="number"
-                step="0.0001"
+                step="0.01"
                 min="0"
                 className="h-9 w-24 text-right tabular-nums"
+                aria-invalid={!!errors?.unit_price}
+                readOnly={foreign || basis !== 'unit'}
+                title={
+                  basis !== 'unit'
+                    ? `Calculated from the rate per ${basis === 'piece' ? 'piece' : 'kg'} — change it in the packaging panel`
+                    : foreign
+                      ? `Calculated from the ${currencyCode} price × rate`
+                      : undefined
+                }
                 {...field}
-                value={field.value ?? ''}
-                onChange={(e) => {
-                  field.onChange(e.target.value)
-                  const v = Number(e.target.value)
-                  setValue(`items.${index}.unit_price`, Number.isFinite(v) ? Math.round(v * exchangeRate * 100) / 100 : 0, { shouldDirty: true })
-                }}
               />
             )}
           />
         </TableCell>
-      )}
-      <TableCell className="w-28">
-        <Controller
-          control={control}
-          name={`items.${index}.unit_price`}
-          render={({ field }) => (
-            <Input
-              type="number"
-              step="0.01"
-              min="0"
-              className="h-9 w-24 text-right tabular-nums"
-              aria-invalid={!!errors?.unit_price}
-              readOnly={foreign}
-              title={foreign ? `Calculated from the ${currencyCode} price × rate` : undefined}
-              {...field}
-            />
+        <TableCell className="min-w-32">
+          <PreviousPriceCell previous={previous} current={unitPrice} loading={previousLoading} />
+        </TableCell>
+        <TableCell className="w-28">
+          {agreed === null ? (
+            <span className="text-xs text-muted-foreground">Not locked</span>
+          ) : (
+            <div>
+              <p className="flex items-center gap-1 text-sm tabular-nums">
+                <Lock className="size-3 text-muted-foreground" />
+                {money(agreed)}
+              </p>
+              {isAbove || isBelow ? (
+                <span
+                  className={cn(
+                    'inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[11px] font-semibold',
+                    isAbove ? 'bg-warning/20 text-warning-foreground' : 'bg-success/15 text-success',
+                  )}
+                >
+                  {isAbove ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />}
+                  {Math.abs(pct!).toFixed(0)}%
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-success">
+                  <CheckCircle2 className="size-3" /> Matched
+                </span>
+              )}
+            </div>
           )}
-        />
-      </TableCell>
-      <TableCell className="min-w-32">
-        <PreviousPriceCell previous={previous} current={unitPrice} loading={previousLoading} />
-      </TableCell>
-      <TableCell className="w-28">
-        {agreed === null ? (
-          <span className="text-xs text-muted-foreground">Not locked</span>
-        ) : (
-          <div>
-            <p className="flex items-center gap-1 text-sm tabular-nums">
-              <Lock className="size-3 text-muted-foreground" />
-              {money(agreed)}
-            </p>
-            {isAbove || isBelow ? (
-              <span
-                className={cn(
-                  'inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[11px] font-semibold',
-                  isAbove ? 'bg-warning/20 text-warning-foreground' : 'bg-success/15 text-success',
-                )}
-              >
-                {isAbove ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />}
-                {Math.abs(pct!).toFixed(0)}%
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-success">
-                <CheckCircle2 className="size-3" /> Matched
-              </span>
-            )}
-          </div>
-        )}
-      </TableCell>
-      <TableCell className="w-24">
-        <Controller
-          control={control}
-          name={`items.${index}.unit_discount`}
-          render={({ field }) => (
-            <Input type="number" step="0.01" min="0" placeholder="0.00" title="Discount per unit (AED)" className="h-9 w-20 text-right tabular-nums" {...field} value={field.value ?? ''} />
-          )}
-        />
-        {line.billDiscount > 0 && <p className="mt-0.5 text-[11px] text-muted-foreground">+{money(line.billDiscount)} bill</p>}
-      </TableCell>
-      <TableCell className="w-28 pt-4 text-right tabular-nums">{money(line.net)}</TableCell>
-      <TableCell className="w-24">
-        {taxDisabled ? (
-          <span className="flex h-9 items-center text-xs text-muted-foreground">Tax off</span>
-        ) : (
+        </TableCell>
+        <TableCell className="w-24">
           <Controller
             control={control}
-            name={`items.${index}.vat_rate`}
+            name={`items.${index}.unit_discount`}
             render={({ field }) => (
-              <Select value={String(field.value)} onValueChange={(v) => field.onChange(Number(v))}>
-                <SelectTrigger className="h-9 w-20">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {VAT_RATES.map((r) => (
-                    <SelectItem key={r.value} value={String(r.value)}>
-                      {r.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Input type="number" step="0.01" min="0" placeholder="0.00" title="Discount per unit (AED)" className="h-9 w-20 text-right tabular-nums" {...field} value={field.value ?? ''} />
             )}
           />
-        )}
-      </TableCell>
-      <TableCell className="w-24 pt-4 text-right tabular-nums">{money(line.vat)}</TableCell>
-      <TableCell className="w-28 pt-4 text-right font-semibold tabular-nums">{money(line.total)}</TableCell>
-      <TableCell className="w-20 border-l">
-        <Controller
-          control={control}
-          name={`items.${index}.foc_quantity`}
-          render={({ field }) => (
-            <Input type="number" step="0.001" min="0" placeholder="0" title="Free of charge quantity" className="h-9 w-16" {...field} value={field.value ?? ''} />
+          {line.billDiscount > 0 && <p className="mt-0.5 text-[11px] text-muted-foreground">+{money(line.billDiscount)} bill</p>}
+        </TableCell>
+        <TableCell className="w-28 pt-4 text-right tabular-nums">{money(line.net)}</TableCell>
+        <TableCell className="w-24">
+          {taxDisabled ? (
+            <span className="flex h-9 items-center text-xs text-muted-foreground">Tax off</span>
+          ) : (
+            <Controller
+              control={control}
+              name={`items.${index}.vat_rate`}
+              render={({ field }) => (
+                <Select value={String(field.value)} onValueChange={(v) => field.onChange(Number(v))}>
+                  <SelectTrigger className="h-9 w-20">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {VAT_RATES.map((r) => (
+                      <SelectItem key={r.value} value={String(r.value)}>
+                        {r.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
           )}
-        />
-      </TableCell>
-      <TableCell className="w-28 pt-4 text-right text-sm tabular-nums" title="Cost per unit received, incl. free qty and other expenses">
-        {line.landingCost !== null ? money(line.landingCost) : '—'}
-      </TableCell>
-      <TableCell className="w-10">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button type="button" variant="ghost" size="icon" aria-label="Line actions">
-              <MoreVertical className="size-4" />
+        </TableCell>
+        <TableCell className="w-24 pt-4 text-right tabular-nums">{money(line.vat)}</TableCell>
+        <TableCell className="w-28 pt-4 text-right font-semibold tabular-nums">{money(line.total)}</TableCell>
+        <TableCell className="w-20 border-l">
+          <Controller
+            control={control}
+            name={`items.${index}.foc_quantity`}
+            render={({ field }) => (
+              <Input type="number" step="0.001" min="0" placeholder="0" title="Free of charge quantity" className="h-9 w-16" {...field} value={field.value ?? ''} />
+            )}
+          />
+        </TableCell>
+        <TableCell className="w-28 pt-4 text-right text-sm tabular-nums" title="Cost per unit received, incl. free qty and other expenses">
+          {line.landingCost !== null ? money(line.landingCost) : '—'}
+        </TableCell>
+        <TableCell className="w-20">
+          <div className="flex items-center">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label={expanded ? 'Hide packaging' : 'Show packaging'}
+              aria-expanded={expanded}
+              onClick={() => setExpanded((v) => !v)}
+            >
+              {expanded ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {previous?.supplierPrice != null && (
-              <DropdownMenuItem onSelect={() => setPrice(previous.supplierPrice!)}>
-                <History /> Use previous price ({money(previous.supplierPrice)})
-              </DropdownMenuItem>
-            )}
-            {agreed !== null && (
-              <DropdownMenuItem onSelect={() => setPrice(agreed)}>
-                <RotateCcw /> Use locked price
-              </DropdownMenuItem>
-            )}
-            {onLockPrice && item?.product_id && unitPrice > 0 && (
-              <>
-                <DropdownMenuItem onSelect={() => onLockPrice('restaurant')}>
-                  <Lock /> Lock {money(unitPrice)} for this restaurant
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button type="button" variant="ghost" size="icon" aria-label="Line actions">
+                  <MoreVertical className="size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {previous?.supplierPrice != null && (
+                  <DropdownMenuItem onSelect={() => setPrice(previous.supplierPrice!)}>
+                    <History /> Use previous price ({money(previous.supplierPrice)})
+                  </DropdownMenuItem>
+                )}
+                {agreed !== null && (
+                  <DropdownMenuItem onSelect={() => setPrice(agreed)}>
+                    <RotateCcw /> Use locked price
+                  </DropdownMenuItem>
+                )}
+                {onLockPrice && item?.product_id && unitPrice > 0 && (
+                  <>
+                    <DropdownMenuItem onSelect={() => onLockPrice('restaurant')}>
+                      <Lock /> Lock {money(unitPrice)} for this restaurant
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => onLockPrice('all')}>
+                      <Lock /> Lock {money(unitPrice)} for all restaurants
+                    </DropdownMenuItem>
+                  </>
+                )}
+                <DropdownMenuItem variant="destructive" onSelect={onRemove}>
+                  <Trash2 /> Remove item
                 </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => onLockPrice('all')}>
-                  <Lock /> Lock {money(unitPrice)} for all restaurants
-                </DropdownMenuItem>
-              </>
-            )}
-            <DropdownMenuItem variant="destructive" onSelect={onRemove}>
-              <Trash2 /> Remove item
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </TableCell>
-    </TableRow>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </TableCell>
+      </TableRow>
+      {expanded && (
+        <TableRow className={cn('hover:bg-transparent', isAbove && 'bg-warning/5')}>
+          <TableCell colSpan={foreign ? 17 : 16} className="bg-muted/30 px-3 pt-1 pb-4 whitespace-normal">
+            <PurchasePackagingPanel
+              index={index}
+              form={form}
+              line={line}
+              units={units}
+              unitsById={unitsById}
+              stockUnit={stockUnit}
+              previous={previous}
+              currencyCode={currencyCode}
+              exchangeRate={exchangeRate}
+              taxDisabled={taxDisabled}
+              onUnitChange={onUnitChange}
+            />
+          </TableCell>
+        </TableRow>
+      )}
+    </Fragment>
   )
 }

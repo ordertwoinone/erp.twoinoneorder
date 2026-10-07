@@ -33,6 +33,14 @@ export const purchaseItemSchema = z.object({
   // Explicit `: boolean` — otherwise TS infers a type predicate and zod narrows
   // the output to 0 | 0.05, which no longer matches the form's input type.
   vat_rate: z.coerce.number().refine((v): boolean => v === 0 || v === 0.05, 'VAT must be 0% or 5%'),
+  /** Packaging: weight/volume of one piece (pack_size = pieces per purchase unit). */
+  piece_weight: optionalAmount,
+  piece_weight_unit_id: z.string().nullable().optional(),
+  /** What the rate is quoted per; unit_price is always per purchase unit. */
+  price_basis: z.enum(['unit', 'piece', 'weight']).optional(),
+  basis_rate: optionalAmount,
+  /** Stock units per purchase unit — filled in from the packaging when saving. */
+  stock_factor: z.number().optional(),
   /** Line description as typed / printed on the invoice; defaults to the item name. */
   description: z.string().optional(),
   // Display-only metadata carried alongside the line for the New Purchase
