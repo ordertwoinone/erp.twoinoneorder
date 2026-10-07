@@ -1,12 +1,10 @@
 import { useMemo } from 'react'
-import { Link } from 'react-router-dom'
-import { ArrowLeftRight } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
-import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { DataTable } from '@/components/tables/DataTable'
 import { useRestaurantScope } from '@/hooks/useRestaurantScope'
 import { useStockBalancesQuery } from '../hooks/useInventory'
+import { InventoryRibbon } from '../components/InventoryRibbon'
 
 interface BalanceRow {
   product_id: string
@@ -38,18 +36,9 @@ export default function StockBalancesPage() {
   )
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Inventory"
-        description="Current stock balances and branch transfers."
-        actions={
-          <Button asChild variant="outline">
-            <Link to="/inventory/transfers">
-              <ArrowLeftRight /> Branch Transfers
-            </Link>
-          </Button>
-        }
-      />
+    <div className="space-y-4">
+      <InventoryRibbon />
+      <PageHeader title="Stock Balances" description="Quantity on hand and average cost per item at the selected location." />
 
       {!selectedRestaurantId && canSwitchRestaurants ? (
         <p className="text-sm text-muted-foreground">Select a specific restaurant to view its stock balances.</p>

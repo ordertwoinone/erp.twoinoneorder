@@ -1,5 +1,6 @@
 import type { LucideIcon } from 'lucide-react'
 import {
+  ArrowLeftRight,
   Banknote,
   BarChart3,
   Boxes,
@@ -12,13 +13,17 @@ import {
   History,
   IdCard,
   LayoutDashboard,
+  MapPin,
   PackageCheck,
+  PackageMinus,
   PackageSearch,
   Palette,
   Receipt,
   Settings,
   ShoppingCart,
+  SlidersHorizontal,
   Tags,
+  Trash2,
   Truck,
   UserCog,
   Users,
@@ -80,8 +85,16 @@ export const navSections: NavSection[] = [
     ],
   },
   {
-    label: 'Operations',
-    items: [{ label: 'Inventory', to: '/inventory', icon: Boxes, permission: 'inventory.manage' }],
+    label: 'Inventory',
+    items: [
+      { label: 'Stock Balances', to: '/inventory', icon: Boxes, permission: 'inventory.manage' },
+      { label: 'Locations', to: '/inventory/locations', icon: MapPin, permission: 'inventory.manage' },
+      { label: 'Purchase Returns', to: '/inventory/purchase-returns', icon: PackageMinus, permission: 'purchases.create' },
+      { label: 'Wastage', to: '/inventory/wastage', icon: Trash2, permission: 'inventory.manage' },
+      { label: 'Stock Adjustments', to: '/inventory/adjustments', icon: SlidersHorizontal, permission: 'inventory.manage' },
+      { label: 'Stock Requests', to: '/inventory/requests', icon: ClipboardList, permission: 'inventory.manage' },
+      { label: 'Stock Transfers', to: '/inventory/transfers', icon: ArrowLeftRight, permission: 'inventory.manage' },
+    ],
   },
   {
     label: 'Reports',

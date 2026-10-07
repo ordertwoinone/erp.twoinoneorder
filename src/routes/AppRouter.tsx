@@ -11,6 +11,13 @@ const ResetPasswordPage = lazy(() => import('@/modules/auth/pages/ResetPasswordP
 const DashboardPage = lazy(() => import('@/modules/dashboard/pages/DashboardPage'))
 const NotFoundPage = lazy(() => import('@/modules/dashboard/pages/NotFoundPage'))
 
+// Inventory documents share one list page and one document page, told apart by kind.
+type StockDocKind = 'purchase_return' | 'wastage' | 'adjustment' | 'request' | 'transfer'
+const stockDocList = (kind: StockDocKind) =>
+  lazy(() => import('@/modules/inventory/pages/StockDocumentsListPage').then((m) => ({ default: () => <m.default kind={kind} /> })))
+const stockDocForm = (kind: StockDocKind) =>
+  lazy(() => import('@/modules/inventory/pages/StockDocumentFormPage').then((m) => ({ default: () => <m.default kind={kind} /> })))
+
 interface ModuleRoute {
   path: string
   permission?: string
@@ -72,9 +79,22 @@ const moduleRoutes: ModuleRoute[] = [
   { path: '/payroll/:id/edit', permission: 'payroll.manage', Component: lazy(() => import('@/modules/payroll/pages/SalaryEntryFormPage')) },
 
   { path: '/inventory', permission: 'inventory.manage', Component: lazy(() => import('@/modules/inventory/pages/StockBalancesPage')) },
-  { path: '/inventory/transfers', permission: 'inventory.manage', Component: lazy(() => import('@/modules/inventory/pages/BranchTransfersListPage')) },
-  { path: '/inventory/transfers/new', permission: 'inventory.manage', Component: lazy(() => import('@/modules/inventory/pages/BranchTransferFormPage')) },
-  { path: '/inventory/transfers/:id', permission: 'inventory.manage', Component: lazy(() => import('@/modules/inventory/pages/BranchTransferDetailPage')) },
+  { path: '/inventory/locations', permission: 'inventory.manage', Component: lazy(() => import('@/modules/inventory/pages/LocationsPage')) },
+  { path: '/inventory/purchase-returns', permission: 'purchases.create', Component: stockDocList('purchase_return') },
+  { path: '/inventory/purchase-returns/new', permission: 'purchases.create', Component: stockDocForm('purchase_return') },
+  { path: '/inventory/purchase-returns/:id', permission: 'purchases.create', Component: stockDocForm('purchase_return') },
+  { path: '/inventory/wastage', permission: 'inventory.manage', Component: stockDocList('wastage') },
+  { path: '/inventory/wastage/new', permission: 'inventory.manage', Component: stockDocForm('wastage') },
+  { path: '/inventory/wastage/:id', permission: 'inventory.manage', Component: stockDocForm('wastage') },
+  { path: '/inventory/adjustments', permission: 'inventory.manage', Component: stockDocList('adjustment') },
+  { path: '/inventory/adjustments/new', permission: 'inventory.manage', Component: stockDocForm('adjustment') },
+  { path: '/inventory/adjustments/:id', permission: 'inventory.manage', Component: stockDocForm('adjustment') },
+  { path: '/inventory/requests', permission: 'inventory.manage', Component: stockDocList('request') },
+  { path: '/inventory/requests/new', permission: 'inventory.manage', Component: stockDocForm('request') },
+  { path: '/inventory/requests/:id', permission: 'inventory.manage', Component: stockDocForm('request') },
+  { path: '/inventory/transfers', permission: 'inventory.manage', Component: stockDocList('transfer') },
+  { path: '/inventory/transfers/new', permission: 'inventory.manage', Component: stockDocForm('transfer') },
+  { path: '/inventory/transfers/:id', permission: 'inventory.manage', Component: stockDocForm('transfer') },
 
   { path: '/settlements', permission: 'settlements.view', Component: lazy(() => import('@/modules/settlements/pages/SettlementsListPage')) },
 

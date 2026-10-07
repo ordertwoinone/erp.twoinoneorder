@@ -1,10 +1,12 @@
 import { useState } from 'react'
-import { BookOpen, Building2, Loader2, Pencil, Plus, Search, Trash2 } from 'lucide-react'
+import { BookOpen, Building2, Check, ChevronsUpDown, Loader2, Pencil, Plus, Search, Trash2 } from 'lucide-react'
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -277,26 +279,12 @@ function ExpenseHeadDialog({ value, onClose }: { value: ExpenseHeadInput | null;
                 <Plus className="size-3.5" /> New ledger
               </button>
             </div>
-            <Select value={form.ledger_account_id ?? ''} onValueChange={(v) => set('ledger_account_id', v || null)}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder={loadingLedgers ? 'Loading ledgers…' : 'Default — 5200 Operating Expenses'} />
-              </SelectTrigger>
-              <SelectContent className="max-h-80">
-                {groups.map((g) => (
-                  <SelectGroup key={g.label}>
-                    <SelectLabel className="flex items-center gap-1.5">
-                      {g.label.startsWith('Shared') ? <BookOpen className="size-3.5" /> : <Building2 className="size-3.5" />}
-                      {g.label}
-                    </SelectLabel>
-                    {g.items.map((l) => (
-                      <SelectItem key={l.id} value={l.id}>
-                        <span className="text-muted-foreground tabular-nums">{l.code}</span> · {l.name}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                ))}
-              </SelectContent>
-            </Select>
+            <LedgerPicker
+              groups={groups}
+              value={form.ledger_account_id}
+              loading={loadingLedgers}
+              onChange={(id) => set('ledger_account_id', id)}
+            />
             <p className="text-xs text-muted-foreground">
               Showing shared ledgers{restaurantName ? ` and ${restaurantName}'s own ledgers` : ''}.
             </p>
@@ -343,6 +331,79 @@ function ExpenseHeadDialog({ value, onClose }: { value: ExpenseHeadInput | null;
         />
       </DialogContent>
     </Dialog>
+  )
+}
+
+/** Searchable ledger list (type a code or name), grouped shared / per restaurant. */
+function LedgerPicker({
+  groups,
+  value,
+  loading,
+  onChange,
+}: {
+  groups: { label: string; items: Ledger[] }[]
+  value: string | null
+  loading: boolean
+  onChange: (id: string | null) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const selected = groups.flatMap((g) => g.items).find((l) => l.id === value)
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button type="button" variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between font-normal">
+          {selected ? (
+            <span className="truncate">
+              <span className="text-muted-foreground tabular-nums">{selected.code}</span> - {selected.name}
+            </span>
+          ) : (
+            <span className="text-muted-foreground">{loading ? 'Loading ledgers…' : 'Default — 5200 Operating Expenses'}</span>
+          )}
+          <ChevronsUpDown className="size-4 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-(--radix-popover-trigger-width) p-0" align="start">
+        <Command filter={(itemValue, search) => (itemValue.toLowerCase().includes(search.toLowerCase()) ? 1 : 0)}>
+          <CommandInput placeholder="Find ledger by code or name…" />
+          <CommandList className="max-h-72">
+            <CommandEmpty>No ledger found.</CommandEmpty>
+            {value && (
+              <CommandGroup>
+                <CommandItem value="clear default" onSelect={() => { onChange(null); setOpen(false) }}>
+                  Use default (5200 Operating Expenses)
+                </CommandItem>
+              </CommandGroup>
+            )}
+            {groups.map((g) => (
+              <CommandGroup
+                key={g.label}
+                heading={
+                  <span className="flex items-center gap-1.5">
+                    {g.label.startsWith('Shared') ? <BookOpen className="size-3.5" /> : <Building2 className="size-3.5" />}
+                    {g.label}
+                  </span>
+                }
+              >
+                {g.items.map((l) => (
+                  <CommandItem
+                    key={l.id}
+                    value={`${l.code} ${l.name} ${l.id}`}
+                    onSelect={() => {
+                      onChange(l.id)
+                      setOpen(false)
+                    }}
+                  >
+                    <span className="w-14 shrink-0 text-muted-foreground tabular-nums">{l.code}</span>
+                    <span className="truncate">{l.name}</span>
+                    {l.id === value && <Check className="ml-auto size-4" />}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            ))}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   )
 }
 
@@ -410,7 +471,15 @@ function LedgersByRestaurant() {
   const { data: restaurants = [] } = useRestaurantsQuery()
   const [restaurantFilter, setRestaurantFilter] = useState(ALL)
   const [newFor, setNewFor] = useState<{ id: string | null; name: string | null } | null>(null)
-  const shown = ledgers.filter((l) => restaurantFilter === ALL || (restaurantFilter === SHARED ? l.restaurant_id === null : l.restaurant_id === restaurantFilter || l.restaurant_id === null))
+  const [typeFilter, setTypeFilter] = useState(ALL)
+  const [ledgerSearch, setLedgerSearch] = useState('')
+  const q = ledgerSearch.trim().toLowerCase()
+  const shown = ledgers.filter(
+    (l) =>
+      (restaurantFilter === ALL || (restaurantFilter === SHARED ? l.restaurant_id === null : l.restaurant_id === restaurantFilter || l.restaurant_id === null)) &&
+      (typeFilter === ALL || l.account_type === typeFilter) &&
+      (!q || `${l.code} ${l.name}`.toLowerCase().includes(q)),
+  )
   const groups = groupLedgers(shown)
 
   return (
@@ -430,6 +499,23 @@ function LedgersByRestaurant() {
             ))}
           </SelectContent>
         </Select>
+        <Select value={typeFilter} onValueChange={setTypeFilter}>
+          <SelectTrigger className="h-10 w-40">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>All types</SelectItem>
+            {['asset', 'liability', 'equity', 'income', 'expense'].map((t) => (
+              <SelectItem key={t} value={t} className="capitalize">
+                {t}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <div className="relative w-full max-w-xs">
+          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input className="h-10 pl-9" placeholder="Find ledger by code or name…" value={ledgerSearch} onChange={(e) => setLedgerSearch(e.target.value)} />
+        </div>
         <Button
           variant="outline"
           onClick={() => {

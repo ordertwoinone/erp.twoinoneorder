@@ -33,6 +33,8 @@ export interface Database {
           monthly_purchase_budget: number | null
           bonus_good_amount: number | null
           bonus_safe_amount: number | null
+          linked_supplier_id: string | null
+          linked_customer_name: string | null
           created_at: string
           updated_at: string
         }
@@ -2054,6 +2056,66 @@ export interface Database {
       set_product_image: {
         Args: { p_product_id: string; p_image_path: string | null }
         Returns: undefined
+      }
+      search_stock_items: {
+        Args: { p_restaurant_id: string; p_search: string | null; p_limit?: number; p_supplier_id?: string | null }
+        Returns: {
+          product_id: string
+          name: string
+          sku: string | null
+          barcode: string | null
+          base_unit_id: string
+          base_unit_code: string
+          pack_size: number | null
+          image_path: string | null
+          current_stock: number
+          average_cost: number
+          last_cost: number
+        }[]
+      }
+      list_locations: {
+        Args: Record<string, never>
+        Returns: {
+          id: string
+          code: string
+          name: string
+          is_head_office: boolean
+          is_active: boolean
+          linked_supplier_id: string | null
+          linked_supplier_name: string | null
+          linked_customer_name: string | null
+          item_count: number
+          stock_value: number
+        }[]
+      }
+      save_location: { Args: { payload: Json }; Returns: string }
+      save_stock_document: { Args: { p_kind: string; payload: Json }; Returns: string }
+      post_stock_document: { Args: { p_kind: string; p_id: string }; Returns: undefined }
+      delete_stock_document: { Args: { p_kind: string; p_id: string }; Returns: undefined }
+      create_transfer_from_request: { Args: { p_request_id: string }; Returns: string }
+      reject_stock_request: { Args: { p_request_id: string }; Returns: undefined }
+      get_stock_document: { Args: { p_kind: string; p_id: string }; Returns: Json }
+      list_stock_documents: {
+        Args: {
+          p_kind: string
+          p_restaurant_id?: string | null
+          p_search?: string | null
+          p_unposted_only?: boolean
+          p_limit?: number
+          p_offset?: number
+        }
+        Returns: {
+          id: string
+          doc_number: string
+          doc_date: string
+          location_name: string
+          counterparty: string | null
+          narration: string | null
+          status: string
+          total_amount: number
+          item_count: number
+          total_count: number
+        }[]
       }
       list_ledgers: {
         Args: { p_restaurant_id?: string | null }
