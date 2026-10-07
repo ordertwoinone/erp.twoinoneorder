@@ -43,6 +43,7 @@ export default function PurchaseOrderFormPage() {
     handleSubmit,
     reset,
     watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<PurchaseOrderFormInput>({
     resolver: zodResolver(purchaseOrderFormSchema),
@@ -128,7 +129,7 @@ export default function PurchaseOrderFormPage() {
                 name="restaurant_id"
                 render={({ field }) => (
                   <Select value={field.value} onValueChange={field.onChange} disabled={isEditing}>
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select restaurant" />
                     </SelectTrigger>
                     <SelectContent>
@@ -151,7 +152,7 @@ export default function PurchaseOrderFormPage() {
                 name="supplier_id"
                 render={({ field }) => (
                   <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select supplier" />
                     </SelectTrigger>
                     <SelectContent>
@@ -190,15 +191,27 @@ export default function PurchaseOrderFormPage() {
           <CardContent className="space-y-3">
             {errors.items?.message && <p className="text-sm text-destructive">{errors.items.message}</p>}
             {fields.map((field, index) => (
-              <div key={field.id} className="grid grid-cols-12 items-start gap-2 rounded-md border p-3">
-                <div className="col-span-12 sm:col-span-4">
+              <div key={field.id} className="grid grid-cols-2 items-start gap-2 rounded-md border p-3 sm:grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)_minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
+                <div className="col-span-2 sm:col-span-1">
                   <Label className="mb-1 text-xs text-muted-foreground">Product</Label>
                   <Controller
                     control={control}
                     name={`items.${index}.product_id`}
                     render={({ field: f }) => (
-                      <Select value={f.value} onValueChange={f.onChange}>
-                        <SelectTrigger>
+                      <Select
+                        value={f.value}
+                        onValueChange={(v) => {
+                          f.onChange(v)
+                          // Default the unit and measurement from the product card.
+                          const product = products?.find((p) => p.id === v)
+                          if (product) {
+                            if (!items[index]?.unit_id) setValue(`items.${index}.unit_id`, product.base_unit_id)
+                            if (items[index]?.pack_size === '' || items[index]?.pack_size == null)
+                              setValue(`items.${index}.pack_size`, product.pack_size ?? '')
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="w-full">
                           <SelectValue placeholder="Select product" />
                         </SelectTrigger>
                         <SelectContent>
@@ -212,14 +225,14 @@ export default function PurchaseOrderFormPage() {
                     )}
                   />
                 </div>
-                <div className="col-span-6 sm:col-span-2">
+                <div>
                   <Label className="mb-1 text-xs text-muted-foreground">Unit</Label>
                   <Controller
                     control={control}
                     name={`items.${index}.unit_id`}
                     render={({ field: f }) => (
                       <Select value={f.value} onValueChange={f.onChange}>
-                        <SelectTrigger>
+                        <SelectTrigger className="w-full">
                           <SelectValue placeholder="Unit" />
                         </SelectTrigger>
                         <SelectContent>
@@ -233,15 +246,35 @@ export default function PurchaseOrderFormPage() {
                     )}
                   />
                 </div>
-                <div className="col-span-6 sm:col-span-2">
+                <div>
+                  <Label className="mb-1 text-xs text-muted-foreground" htmlFor={`items.${index}.pack_size`}>
+                    Measurement
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id={`items.${index}.pack_size`}
+                      type="number"
+                      step="0.001"
+                      min="0"
+                      placeholder="e.g. 24"
+                      className="pr-16"
+                      {...register(`items.${index}.pack_size`)}
+                    />
+                    <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-xs text-muted-foreground">
+                      {items[index]?.unit_id ? `per ${units?.find((u) => u.id === items[index]?.unit_id)?.code ?? ''}` : ''}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-[11px] text-muted-foreground">Size per unit (e.g. 24 pcs, 5 kg)</p>
+                </div>
+                <div>
                   <Label className="mb-1 text-xs text-muted-foreground">Qty</Label>
                   <Input type="number" step="0.001" {...register(`items.${index}.quantity`)} />
                 </div>
-                <div className="col-span-6 sm:col-span-2">
+                <div>
                   <Label className="mb-1 text-xs text-muted-foreground">Unit price</Label>
                   <Input type="number" step="0.01" {...register(`items.${index}.unit_price`)} />
                 </div>
-                <div className="col-span-6 flex items-end justify-between gap-2 sm:col-span-2">
+                <div className="col-span-2 flex items-center justify-between gap-2 sm:col-span-1 sm:mt-5">
                   <div className="text-sm font-medium tabular-nums">
                     {formatCurrency((Number(items[index]?.quantity) || 0) * (Number(items[index]?.unit_price) || 0))}
                   </div>
