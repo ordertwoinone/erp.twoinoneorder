@@ -1,17 +1,20 @@
 import { Fragment, useState } from 'react'
 import type { UseFormReturn } from 'react-hook-form'
 import { Controller, useFieldArray } from 'react-hook-form'
-import { AlertTriangle, CalendarClock, CalendarDays, ChevronDown, ClipboardList, Info, MinusCircle, Paperclip, Plus, ReceiptText, Wallet, X } from 'lucide-react'
+import { AlertTriangle, CalendarClock, CalendarDays, ChevronDown, ClipboardList, Gavel, Info, MinusCircle, Paperclip, Plus, ReceiptText, Wallet, X } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/utils/format'
 import type { EmployeeRecordInput } from '@/schemas/employee'
 import { FINE_STATUSES, PAID_BY, PAYMENT_METHODS, TYPING_PROCESSES, VISA_STEPS, VISA_STEP_STATUSES, optionLabel } from '../../employeeOptions'
 import { openEmployeeFile, validateDocumentFile } from '../../hooks/useEmployeeRecord'
+import { useCompanyCategoriesQuery } from '../../hooks/useCompanyCategories'
 import { Field, OptionSelect, SectionCard } from './RecordUi'
 import { TONE_CLASSES, countdown, newId, num, shortDate } from './recordUtils'
 
@@ -33,6 +36,31 @@ const LEGEND = [
   { tone: 'today' as const, title: 'Expires today', hint: 'Due today', icon: CalendarDays },
   { tone: 'na' as const, title: 'N/A', hint: 'No expiry (not applicable)', icon: MinusCircle },
 ]
+
+const NO_CATEGORY = '__none__'
+
+/** Yes / No pill pair; null means "not answered yet". */
+function PaidQuestion({ value, onChange }: { value: boolean | null | undefined; onChange: (v: boolean) => void }) {
+  return (
+    <div className="mt-1 flex items-center gap-1.5 text-[11px]">
+      <span className="text-muted-foreground">Paid?</span>
+      {[
+        { v: true, label: 'Yes', on: 'border-success bg-success text-white' },
+        { v: false, label: 'No', on: 'border-destructive bg-destructive text-white' },
+      ].map((o) => (
+        <button
+          key={o.label}
+          type="button"
+          aria-pressed={value === o.v}
+          onClick={() => onChange(o.v)}
+          className={cn('rounded border px-2 py-0.5 font-medium transition-colors', value === o.v ? o.on : 'bg-muted/40 text-muted-foreground hover:text-foreground')}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  )
+}
 
 function FilePick({ name, path, onPick }: { name: string | null | undefined; path: string | null | undefined; onPick: (file: File) => void }) {
   return (
@@ -76,8 +104,19 @@ export function TypingCentreSection({ form }: { form: UseFormReturn<EmployeeReco
   const payments = watch('typing_payments')
   const { fields: paymentRows, append, remove } = useFieldArray({ control, name: 'typing_payments' })
   const [open, setOpen] = useState<string | null>(null)
+  const { data: categories = [] } = useCompanyCategoriesQuery()
+  const categoryValues = new Map(
+    categories.flatMap((c) => c.company_category_values.map((v) => [v.id, { ...v, categoryName: c.name }] as const)),
+  )
 
-  const paidFor = (key: string) => payments.filter((p) => p.step_key === key).reduce((s, p) => s + num(p.payment_amount), 0)
+  /** Amount of the step's company category when it's marked as paid. */
+  const categoryPaid = (index: number) => {
+    const st = steps[index]
+    const value = st?.company_category_value_id ? categoryValues.get(st.company_category_value_id) : undefined
+    return st?.category_paid && value ? Number(value.amount) : 0
+  }
+  const ledgerPaid = (key: string) => payments.filter((p) => p.step_key === key).reduce((s, p) => s + num(p.payment_amount), 0)
+  const paidFor = (key: string, index: number) => ledgerPaid(key) + categoryPaid(index)
   const lastPaymentDate = (key: string) =>
     payments
       .filter((p) => p.step_key === key && p.payment_date)
@@ -86,7 +125,8 @@ export function TypingCentreSection({ form }: { form: UseFormReturn<EmployeeReco
       .at(-1)
 
   const totalCost = steps.reduce((s, st) => s + num(st.government_fee) + num(st.other_charges), 0)
-  const totalPaid = payments.reduce((s, p) => s + num(p.payment_amount), 0)
+  const totalPaid = payments.reduce((s, p) => s + num(p.payment_amount), 0) + steps.reduce((s, _st, i) => s + categoryPaid(i), 0)
+  const totalFines = steps.reduce((s, st) => s + num(st.fine_amount), 0)
 
   return (
     <SectionCard icon={ClipboardList} title="Typing centre payments" lockKey="typing">
@@ -122,9 +162,11 @@ export function TypingCentreSection({ form }: { form: UseFormReturn<EmployeeReco
               <TableHead>Process start date</TableHead>
               <TableHead>Expiry date</TableHead>
               <TableHead>Days left</TableHead>
+              <TableHead>Company category</TableHead>
               <TableHead className="text-right">Amount (AED)</TableHead>
               <TableHead className="text-right">Paid (AED)</TableHead>
               <TableHead className="text-right">Balance (AED)</TableHead>
+              <TableHead>Fine (AED) &amp; reason</TableHead>
               <TableHead>Payment date</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Receipt</TableHead>
@@ -136,7 +178,8 @@ export function TypingCentreSection({ form }: { form: UseFormReturn<EmployeeReco
               const step = steps[index]
               if (!step) return null
               const amount = num(step.government_fee) + num(step.other_charges)
-              const paid = paidFor(def.key)
+              const paid = paidFor(def.key, index)
+              const catValue = step.company_category_value_id ? categoryValues.get(step.company_category_value_id) : undefined
               const balance = Math.max(amount - paid, 0)
               const cd = countdown(step.expiry_date, step.expiry_not_applicable)
               const isOpen = open === def.key
@@ -186,11 +229,78 @@ export function TypingCentreSection({ form }: { form: UseFormReturn<EmployeeReco
                     <TableCell>
                       <span className={cn('inline-flex rounded-md border px-2 py-0.5 text-[11px] font-medium whitespace-nowrap', TONE_CLASSES[cd.tone])}>{cd.label}</span>
                     </TableCell>
+                    <TableCell className="min-w-48">
+                      <Select
+                        value={step.company_category_value_id ?? NO_CATEGORY}
+                        onValueChange={(v) => {
+                          const picked = v === NO_CATEGORY ? undefined : categoryValues.get(v)
+                          setValue(`visa_steps.${index}.company_category_value_id`, picked ? v : null, { shouldDirty: true })
+                          // A new pick asks the paid question again; its amount becomes the step amount.
+                          setValue(`visa_steps.${index}.category_paid`, null, { shouldDirty: true })
+                          if (picked) setValue(`visa_steps.${index}.government_fee`, Number(picked.amount), { shouldDirty: true })
+                        }}
+                      >
+                        <SelectTrigger className="h-8 w-full text-xs" aria-label={`${def.label} company category`}>
+                          <SelectValue placeholder="Select category" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-72">
+                          <SelectItem value={NO_CATEGORY}>No category</SelectItem>
+                          {categories
+                            .filter((c) => c.is_active || c.company_category_values.some((v) => v.id === step.company_category_value_id))
+                            .map((c) => (
+                              <SelectGroup key={c.id}>
+                                <SelectLabel>{c.name}</SelectLabel>
+                                {c.company_category_values.map((v) => (
+                                  <SelectItem key={v.id} value={v.id}>
+                                    {v.label} · {formatCurrency(v.amount)}
+                                  </SelectItem>
+                                ))}
+                              </SelectGroup>
+                            ))}
+                          {categories.length === 0 && (
+                            <p className="px-2 py-1.5 text-xs text-muted-foreground">
+                              No categories yet —{' '}
+                              <Link to="/employees/company-categories" className="text-primary hover:underline">
+                                add them
+                              </Link>
+                            </p>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      {catValue && (
+                        <PaidQuestion value={step.category_paid} onChange={(v) => setValue(`visa_steps.${index}.category_paid`, v, { shouldDirty: true })} />
+                      )}
+                    </TableCell>
                     <TableCell className="min-w-28">
                       <Input type="number" step="0.01" min="0" placeholder="—" className="h-8 text-right text-xs" {...register(`visa_steps.${index}.government_fee`)} />
+                      {catValue && <p className="mt-1 text-right text-[11px] text-muted-foreground">{catValue.label}</p>}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">{paid ? formatCurrency(paid) : '—'}</TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {paid ? formatCurrency(paid) : '—'}
+                      {step.category_paid && catValue && <p className="text-[11px] text-success">Category paid</p>}
+                    </TableCell>
                     <TableCell className={cn('text-right tabular-nums', balance > 0 && 'font-medium text-destructive')}>{balance ? formatCurrency(balance) : '—'}</TableCell>
+                    <TableCell className="min-w-48">
+                      <div className="flex flex-col gap-1">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder="Fine"
+                          aria-label={`${def.label} fine amount`}
+                          className={cn('h-8 text-right text-xs', num(step.fine_amount) > 0 && 'border-destructive/50 text-destructive')}
+                          {...register(`visa_steps.${index}.fine_amount`)}
+                        />
+                        {num(step.fine_amount) > 0 && (
+                          <Input
+                            placeholder="Fine reason"
+                            aria-label={`${def.label} fine reason`}
+                            className="h-7 text-xs"
+                            {...register(`visa_steps.${index}.fine_reason`)}
+                          />
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell className="whitespace-nowrap">{shortDate(lastPaymentDate(def.key))}</TableCell>
                     <TableCell className="min-w-36">
                       <Controller
@@ -224,16 +334,13 @@ export function TypingCentreSection({ form }: { form: UseFormReturn<EmployeeReco
                   </TableRow>
                   {isOpen && (
                     <TableRow className="bg-primary/5 hover:bg-primary/5">
-                      <TableCell colSpan={12} className="p-4">
+                      <TableCell colSpan={14} className="p-4">
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
                           <Field label="Approval date">
                             <Input type="date" className="h-9" {...register(`visa_steps.${index}.approval_date`)} />
                           </Field>
                           <Field label="Other charges (AED)" hint="Added to the amount (typing, service fees…)">
                             <Input type="number" step="0.01" min="0" className="h-9" {...register(`visa_steps.${index}.other_charges`)} />
-                          </Field>
-                          <Field label="Fine (AED)">
-                            <Input type="number" step="0.01" min="0" className="h-9" {...register(`visa_steps.${index}.fine_amount`)} />
                           </Field>
                           <Field label="Fine status">
                             <Controller
@@ -256,7 +363,8 @@ export function TypingCentreSection({ form }: { form: UseFormReturn<EmployeeReco
         </Table>
       </div>
       <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-        <Info className="size-3.5 text-primary" /> Track start and expiry for each step. Tick N/A when no expiry applies. Paid comes from the payment record below.
+        <Info className="size-3.5 text-primary" /> Track start and expiry for each step. Tick N/A when no expiry applies. Paid comes from the payment record below,
+        plus the company category amount when it is marked paid.
       </p>
 
       <div className="mt-4 rounded-lg border border-primary/20 bg-primary/5 p-4">
@@ -277,11 +385,12 @@ export function TypingCentreSection({ form }: { form: UseFormReturn<EmployeeReco
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {[
           { label: 'Total cost (AED)', value: totalCost, icon: ReceiptText, className: '' },
           { label: 'Total paid (AED)', value: totalPaid, icon: Wallet, className: 'text-success' },
           { label: 'Outstanding (AED)', value: Math.max(totalCost - totalPaid, 0), icon: AlertTriangle, className: totalCost - totalPaid > 0 ? 'text-destructive' : '' },
+          { label: 'Fines (AED)', value: totalFines, icon: Gavel, className: totalFines > 0 ? 'text-destructive' : '' },
         ].map((t) => (
           <div key={t.label} className="flex items-center gap-3 rounded-lg border bg-muted/20 px-4 py-3">
             <t.icon className="size-7 text-primary" />

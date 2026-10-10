@@ -12,6 +12,7 @@ import {
   FileSignature,
   History,
   IdCard,
+  Layers,
   LayoutDashboard,
   MapPin,
   PackageCheck,
@@ -79,6 +80,7 @@ export const navSections: NavSection[] = [
     label: 'People',
     items: [
       { label: 'Employees', to: '/employees', icon: Users, permission: 'employees.view' },
+      { label: 'Company Categories', to: '/employees/company-categories', icon: Layers, permission: 'employees.manage' },
       { label: 'Payroll', to: '/payroll', icon: CalendarClock, permission: 'payroll.view' },
     ],
   },

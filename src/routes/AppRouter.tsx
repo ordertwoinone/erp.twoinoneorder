@@ -64,6 +64,7 @@ const moduleRoutes: ModuleRoute[] = [
 
   { path: '/employees', permission: 'employees.view', Component: lazy(() => import('@/modules/employees/pages/EmployeesListPage')) },
   { path: '/employees/scan', permission: 'employees.manage', Component: lazy(() => import('@/modules/employees/pages/LabourListScanPage')) },
+  { path: '/employees/company-categories', permission: 'employees.manage', Component: lazy(() => import('@/modules/employees/pages/CompanyCategoriesPage')) },
   { path: '/employees/new', permission: 'employees.manage', Component: lazy(() => import('@/modules/employees/pages/EmployeeRecordPage')) },
   { path: '/employees/:id', permission: 'employees.manage', Component: lazy(() => import('@/modules/employees/pages/EmployeeRecordPage')) },
 

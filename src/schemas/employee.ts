@@ -45,6 +45,11 @@ export const visaStepRowSchema = z.object({
   other_charges: optionalAmount,
   fine_amount: optionalAmount,
   fine_status: optionalText,
+  fine_reason: optionalText,
+  /** Value picked from a company category (its amount becomes the step amount). */
+  company_category_value_id: z.string().nullable().optional(),
+  /** Whether the category amount is already paid (null = not answered). */
+  category_paid: z.boolean().nullable().optional(),
   notes: optionalText,
   attachment_id: z.string().optional().nullable(),
   attachment_name: z.string().optional().nullable(),

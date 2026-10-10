@@ -1045,6 +1045,9 @@ export interface Database {
           attachment_id: string | null
           step_option: string | null
           expiry_not_applicable: boolean
+          company_category_value_id: string | null
+          category_paid: boolean | null
+          fine_reason: string | null
           created_at: string
           updated_at: string
         }
@@ -1056,6 +1059,40 @@ export interface Database {
             columns: ['attachment_id']
             isOneToOne: false
             referencedRelation: 'attachments'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      company_categories: {
+        Row: {
+          id: string
+          name: string
+          description: string | null
+          is_active: boolean
+          sort_order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['company_categories']['Row']> & { name: string }
+        Update: Partial<Database['public']['Tables']['company_categories']['Row']>
+        Relationships: []
+      }
+      company_category_values: {
+        Row: {
+          id: string
+          category_id: string
+          label: string
+          amount: number
+          sort_order: number
+        }
+        Insert: Partial<Database['public']['Tables']['company_category_values']['Row']> & { category_id: string; label: string }
+        Update: Partial<Database['public']['Tables']['company_category_values']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'company_category_values_category_id_fkey'
+            columns: ['category_id']
+            isOneToOne: false
+            referencedRelation: 'company_categories'
             referencedColumns: ['id']
           },
         ]
@@ -2133,6 +2170,8 @@ export interface Database {
           total_count: number
         }[]
       }
+      save_company_category: { Args: { payload: Json }; Returns: string }
+      delete_company_category: { Args: { p_id: string }; Returns: undefined }
       list_ledgers: {
         Args: { p_restaurant_id?: string | null }
         Returns: {
