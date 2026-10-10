@@ -1046,6 +1046,7 @@ export interface Database {
           step_option: string | null
           expiry_not_applicable: boolean
           company_category_value_id: string | null
+          company_category_id: string | null
           category_paid: boolean | null
           fine_reason: string | null
           created_at: string
@@ -1067,6 +1068,7 @@ export interface Database {
         Row: {
           id: string
           name: string
+          amount: number
           description: string | null
           is_active: boolean
           sort_order: number

@@ -3,30 +3,23 @@ import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase/client'
 import type { Json } from '@/types/database'
 
-export interface CompanyCategoryValue {
-  id: string
-  label: string
-  amount: number
-  sort_order: number
-}
-
 export interface CompanyCategory {
   id: string
   name: string
+  amount: number
   description: string | null
   is_active: boolean
-  company_category_values: CompanyCategoryValue[]
 }
 
 export interface CompanyCategoryInput {
   id?: string
   name: string
+  amount: number | ''
   description: string
   is_active: boolean
-  values: { id: string | null; label: string; amount: number | '' }[]
 }
 
-/** Every category with its values (values in their saved order). */
+/** Every company category with its amount. */
 export function useCompanyCategoriesQuery() {
   return useQuery({
     queryKey: ['company-categories'],
@@ -34,14 +27,11 @@ export function useCompanyCategoriesQuery() {
     queryFn: async (): Promise<CompanyCategory[]> => {
       const { data, error } = await supabase
         .from('company_categories')
-        .select('id, name, description, is_active, company_category_values(id, label, amount, sort_order)')
+        .select('id, name, amount, description, is_active')
         .order('sort_order')
         .order('name')
       if (error) throw error
-      return (data as unknown as CompanyCategory[]).map((c) => ({
-        ...c,
-        company_category_values: [...c.company_category_values].sort((a, b) => a.sort_order - b.sort_order),
-      }))
+      return data.map((c) => ({ ...c, amount: Number(c.amount) }))
     },
   })
 }
@@ -54,9 +44,9 @@ export function useSaveCompanyCategory() {
         payload: {
           id: input.id ?? null,
           name: input.name,
+          amount: input.amount === '' ? 0 : input.amount,
           description: input.description,
           is_active: input.is_active,
-          values: input.values.map((v) => ({ id: v.id, label: v.label, amount: v.amount === '' ? 0 : v.amount })),
         } as unknown as Json,
       })
       if (error) throw error

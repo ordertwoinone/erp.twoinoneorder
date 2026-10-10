@@ -7,7 +7,7 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/utils/format'
@@ -105,18 +105,15 @@ export function TypingCentreSection({ form }: { form: UseFormReturn<EmployeeReco
   const { fields: paymentRows, append, remove } = useFieldArray({ control, name: 'typing_payments' })
   const [open, setOpen] = useState<string | null>(null)
   const { data: categories = [] } = useCompanyCategoriesQuery()
-  const categoryValues = new Map(
-    categories.flatMap((c) => c.company_category_values.map((v) => [v.id, { ...v, categoryName: c.name }] as const)),
-  )
+  const categoriesById = new Map(categories.map((c) => [c.id, c]))
 
-  /** Amount of the step's company category when it's marked as paid. */
-  const categoryPaid = (index: number) => {
-    const st = steps[index]
-    const value = st?.company_category_value_id ? categoryValues.get(st.company_category_value_id) : undefined
-    return st?.category_paid && value ? Number(value.amount) : 0
-  }
+  const stepAmount = (index: number) => num(steps[index]?.government_fee) + num(steps[index]?.other_charges)
   const ledgerPaid = (key: string) => payments.filter((p) => p.step_key === key).reduce((s, p) => s + num(p.payment_amount), 0)
-  const paidFor = (key: string, index: number) => ledgerPaid(key) + categoryPaid(index)
+  /** A company category marked "Paid: Yes" counts the step amount as paid; otherwise the payment record decides. */
+  const paidFor = (key: string, index: number) => {
+    const st = steps[index]
+    return st?.company_category_id && st.category_paid ? stepAmount(index) : ledgerPaid(key)
+  }
   const lastPaymentDate = (key: string) =>
     payments
       .filter((p) => p.step_key === key && p.payment_date)
@@ -125,7 +122,10 @@ export function TypingCentreSection({ form }: { form: UseFormReturn<EmployeeReco
       .at(-1)
 
   const totalCost = steps.reduce((s, st) => s + num(st.government_fee) + num(st.other_charges), 0)
-  const totalPaid = payments.reduce((s, p) => s + num(p.payment_amount), 0) + steps.reduce((s, _st, i) => s + categoryPaid(i), 0)
+  const stepKeys = new Set(VISA_STEPS.map((s) => s.key))
+  const totalPaid =
+    VISA_STEPS.reduce((s, def, i) => s + paidFor(def.key, i), 0) +
+    payments.filter((p) => !stepKeys.has(p.step_key)).reduce((s, p) => s + num(p.payment_amount), 0)
   const totalFines = steps.reduce((s, st) => s + num(st.fine_amount), 0)
 
   return (
@@ -177,9 +177,9 @@ export function TypingCentreSection({ form }: { form: UseFormReturn<EmployeeReco
             {VISA_STEPS.map((def, index) => {
               const step = steps[index]
               if (!step) return null
-              const amount = num(step.government_fee) + num(step.other_charges)
+              const amount = stepAmount(index)
               const paid = paidFor(def.key, index)
-              const catValue = step.company_category_value_id ? categoryValues.get(step.company_category_value_id) : undefined
+              const category = step.company_category_id ? categoriesById.get(step.company_category_id) : undefined
               const balance = Math.max(amount - paid, 0)
               const cd = countdown(step.expiry_date, step.expiry_not_applicable)
               const isOpen = open === def.key
@@ -231,10 +231,10 @@ export function TypingCentreSection({ form }: { form: UseFormReturn<EmployeeReco
                     </TableCell>
                     <TableCell className="min-w-48">
                       <Select
-                        value={step.company_category_value_id ?? NO_CATEGORY}
+                        value={step.company_category_id ?? NO_CATEGORY}
                         onValueChange={(v) => {
-                          const picked = v === NO_CATEGORY ? undefined : categoryValues.get(v)
-                          setValue(`visa_steps.${index}.company_category_value_id`, picked ? v : null, { shouldDirty: true })
+                          const picked = v === NO_CATEGORY ? undefined : categoriesById.get(v)
+                          setValue(`visa_steps.${index}.company_category_id`, picked ? v : null, { shouldDirty: true })
                           // A new pick asks the paid question again; its amount becomes the step amount.
                           setValue(`visa_steps.${index}.category_paid`, null, { shouldDirty: true })
                           if (picked) setValue(`visa_steps.${index}.government_fee`, Number(picked.amount), { shouldDirty: true })
@@ -246,16 +246,11 @@ export function TypingCentreSection({ form }: { form: UseFormReturn<EmployeeReco
                         <SelectContent className="max-h-72">
                           <SelectItem value={NO_CATEGORY}>No category</SelectItem>
                           {categories
-                            .filter((c) => c.is_active || c.company_category_values.some((v) => v.id === step.company_category_value_id))
+                            .filter((c) => c.is_active || c.id === step.company_category_id)
                             .map((c) => (
-                              <SelectGroup key={c.id}>
-                                <SelectLabel>{c.name}</SelectLabel>
-                                {c.company_category_values.map((v) => (
-                                  <SelectItem key={v.id} value={v.id}>
-                                    {v.label} · {formatCurrency(v.amount)}
-                                  </SelectItem>
-                                ))}
-                              </SelectGroup>
+                              <SelectItem key={c.id} value={c.id}>
+                                {c.name} · {formatCurrency(c.amount)}
+                              </SelectItem>
                             ))}
                           {categories.length === 0 && (
                             <p className="px-2 py-1.5 text-xs text-muted-foreground">
@@ -267,17 +262,16 @@ export function TypingCentreSection({ form }: { form: UseFormReturn<EmployeeReco
                           )}
                         </SelectContent>
                       </Select>
-                      {catValue && (
+                      {category && (
                         <PaidQuestion value={step.category_paid} onChange={(v) => setValue(`visa_steps.${index}.category_paid`, v, { shouldDirty: true })} />
                       )}
                     </TableCell>
                     <TableCell className="min-w-28">
                       <Input type="number" step="0.01" min="0" placeholder="—" className="h-8 text-right text-xs" {...register(`visa_steps.${index}.government_fee`)} />
-                      {catValue && <p className="mt-1 text-right text-[11px] text-muted-foreground">{catValue.label}</p>}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {paid ? formatCurrency(paid) : '—'}
-                      {step.category_paid && catValue && <p className="text-[11px] text-success">Category paid</p>}
+                      {step.category_paid && category && <p className="text-[11px] text-success">Paid</p>}
                     </TableCell>
                     <TableCell className={cn('text-right tabular-nums', balance > 0 && 'font-medium text-destructive')}>{balance ? formatCurrency(balance) : '—'}</TableCell>
                     <TableCell className="min-w-48">
@@ -364,7 +358,7 @@ export function TypingCentreSection({ form }: { form: UseFormReturn<EmployeeReco
       </div>
       <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
         <Info className="size-3.5 text-primary" /> Track start and expiry for each step. Tick N/A when no expiry applies. Paid comes from the payment record below,
-        plus the company category amount when it is marked paid.
+        or is the full amount when the company category is marked paid.
       </p>
 
       <div className="mt-4 rounded-lg border border-primary/20 bg-primary/5 p-4">

@@ -139,7 +139,7 @@ function toFormValues(id: string, restaurantId: string, record?: EmployeeRecordD
         fine_amount: n(saved?.fine_amount),
         fine_status: s(saved?.fine_status),
         fine_reason: s(saved?.fine_reason),
-        company_category_value_id: saved?.company_category_value_id ?? null,
+        company_category_id: saved?.company_category_id ?? null,
         category_paid: saved?.category_paid ?? null,
         notes: s(saved?.notes),
         attachment_id: saved?.attachment_id ?? null,
