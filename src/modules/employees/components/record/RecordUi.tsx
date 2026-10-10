@@ -80,7 +80,7 @@ export function SectionCard({
       </div>
       {/* A disabled fieldset disables every input, select and button inside it in one go.
           Links (<a>) stay clickable, so file chips can still be opened in view mode. */}
-      <fieldset disabled={!unlocked} className="m-0 min-w-0 border-0 p-0">
+      <fieldset disabled={!unlocked} className="record-view m-0 min-w-0 border-0 p-0">
         {children}
       </fieldset>
     </section>
@@ -152,6 +152,7 @@ export function SegmentedToggle({
         <button
           key={o.label}
           type="button"
+          aria-pressed={value === o.value}
           onClick={() => onChange(o.value)}
           className={cn(
             'rounded-md text-sm font-medium transition-colors',

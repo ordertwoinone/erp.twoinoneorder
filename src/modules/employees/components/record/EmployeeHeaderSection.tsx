@@ -121,12 +121,12 @@ export function EmployeeHeaderSection({
               <CalendarDays className="size-4" /> As of {format(new Date(), 'd MMM yyyy')}
             </span>
           </div>
-          <fieldset disabled={!unlocked} className="m-0 min-w-0 border-0 p-0">
+          <fieldset disabled={!unlocked} className="record-view m-0 min-w-0 border-0 p-0">
             <Popover open={matches.length > 0} onOpenChange={(open) => !open && setMatches([])}>
               <PopoverAnchor asChild>
                 <div className="grid grid-cols-1 items-end gap-4 sm:grid-cols-2 lg:grid-cols-[1.2fr_1fr_1fr_1.2fr_auto]">
                   <Field label="Employee name" error={formState.errors.full_name?.message}>
-                    <IconInput icon={User} placeholder="Full name" {...register('full_name')} />
+                    <IconInput icon={User} placeholder="Full name" className="font-semibold" {...register('full_name')} />
                   </Field>
                   <Field label="Employee ID">
                     <IconInput icon={IdCard} placeholder="Auto-generated if blank" {...register('employee_code')} />

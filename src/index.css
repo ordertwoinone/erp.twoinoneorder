@@ -221,3 +221,24 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Employee record in view mode: a locked section disables its fields, but the
+   values must stay fully readable — show them as values, not greyed-out inputs.
+   Unlayered so it beats the components' disabled:opacity-50 utility. */
+fieldset.record-view:disabled :is(input, textarea, [data-slot='select-trigger']):disabled {
+  opacity: 1;
+  color: var(--foreground);
+  background-color: color-mix(in oklab, var(--muted) 55%, transparent);
+  cursor: default;
+}
+fieldset.record-view:disabled :is(input, textarea):disabled::placeholder {
+  color: var(--muted-foreground);
+  opacity: 0.6;
+}
+/* Choice buttons (e.g. Visit visa / Employment visa): keep the chosen one vivid. */
+fieldset.record-view:disabled button:disabled {
+  cursor: default;
+}
+fieldset.record-view:disabled button:disabled:is([data-state='on'], [data-state='checked'], [aria-pressed='true'], [aria-checked='true']) {
+  opacity: 1;
+}
