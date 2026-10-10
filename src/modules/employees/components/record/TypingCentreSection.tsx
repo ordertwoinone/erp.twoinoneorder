@@ -40,31 +40,58 @@ const LEGEND = [
 
 const NO_CATEGORY = '__none__'
 
-/** Yes / No pill pair; null means "not answered yet". */
-function PaidQuestion({ value, locked, onChange }: { value: boolean | null | undefined; locked: boolean; onChange: (v: boolean) => void }) {
+/**
+ * Yes / No pill pair; null means "not answered yet". While the section is
+ * locked the pills are plain elements (a disabled fieldset would swallow the
+ * click on a real button): clicking asks for the password and then applies
+ * the answer.
+ */
+function PaidQuestion({
+  value,
+  locked,
+  onChange,
+  onLockedChange,
+}: {
+  value: boolean | null | undefined
+  locked: boolean
+  onChange: (v: boolean) => void
+  onLockedChange: (v: boolean) => void
+}) {
   return (
     <div className="mt-1 flex items-center gap-1.5 text-[11px]">
       <span className="text-muted-foreground">Paid?</span>
       {[
         { v: true, label: 'Yes', on: 'border-success bg-success text-white' },
         { v: false, label: 'No', on: 'border-destructive bg-destructive text-white' },
-      ].map((o) => (
-        <button
-          key={o.label}
-          type="button"
-          aria-pressed={value === o.v}
-          onClick={() => onChange(o.v)}
-          disabled={locked}
-          title={locked ? 'Unlock this section (Unlock to edit) to change' : undefined}
-          className={cn(
-            'rounded border px-2 py-0.5 font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50',
-            value === o.v ? o.on : 'bg-muted/40 text-muted-foreground enabled:hover:text-foreground',
-          )}
-        >
-          {o.label}
-        </button>
-      ))}
-      {locked && value == null && <span className="text-muted-foreground">· unlock to answer</span>}
+      ].map((o) => {
+        const className = cn(
+          'cursor-pointer rounded border px-2 py-0.5 font-medium transition-colors',
+          value === o.v ? o.on : 'bg-muted/40 text-muted-foreground hover:text-foreground',
+        )
+        return locked ? (
+          <span
+            key={o.label}
+            role="button"
+            tabIndex={0}
+            aria-pressed={value === o.v}
+            title="Asks for your password, then saves this answer"
+            className={className}
+            onClick={() => onLockedChange(o.v)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                onLockedChange(o.v)
+              }
+            }}
+          >
+            {o.label}
+          </span>
+        ) : (
+          <button key={o.label} type="button" aria-pressed={value === o.v} onClick={() => onChange(o.v)} className={className}>
+            {o.label}
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -111,13 +138,23 @@ export function TypingCentreSection({ form }: { form: UseFormReturn<EmployeeReco
   const payments = watch('typing_payments')
   const { fields: paymentRows, append, remove } = useFieldArray({ control, name: 'typing_payments' })
   const [open, setOpen] = useState<string | null>(null)
-  const locked = !useRecordLock().isUnlocked('typing')
+  const lock = useRecordLock()
+  const locked = !lock.isUnlocked('typing')
   const { data: categories = [] } = useCompanyCategoriesQuery()
   const categoriesById = new Map(categories.map((c) => [c.id, c]))
 
   const stepAmount = (index: number) => num(steps[index]?.government_fee) + num(steps[index]?.other_charges)
   const ledgerPaid = (key: string) => payments.filter((p) => p.step_key === key).reduce((s, p) => s + num(p.payment_amount), 0)
   const paidFor = (key: string, index: number) => (steps[index] ? stepPaid(steps[index], ledgerPaid(key)) : 0)
+
+  /** Yes: the category amount becomes the step amount (and so the paid amount). No: take back an amount Yes filled in. */
+  const answerPaid = (index: number, categoryAmount: number, paidYes: boolean) => {
+    setValue(`visa_steps.${index}.category_paid`, paidYes, { shouldDirty: true })
+    if (paidYes) setValue(`visa_steps.${index}.government_fee`, categoryAmount, { shouldDirty: true })
+    else if (num(form.getValues(`visa_steps.${index}.government_fee`)) === categoryAmount) {
+      setValue(`visa_steps.${index}.government_fee`, '', { shouldDirty: true })
+    }
+  }
   const lastPaymentDate = (key: string) =>
     payments
       .filter((p) => p.step_key === key && p.payment_date)
@@ -273,13 +310,8 @@ export function TypingCentreSection({ form }: { form: UseFormReturn<EmployeeReco
                         <PaidQuestion
                           locked={locked}
                           value={step.category_paid}
-                          onChange={(paidYes) => {
-                            setValue(`visa_steps.${index}.category_paid`, paidYes, { shouldDirty: true })
-                            // Yes: the category amount becomes the step amount (and so the paid amount).
-                            // No: take back an amount that Yes filled in.
-                            if (paidYes) setValue(`visa_steps.${index}.government_fee`, category.amount, { shouldDirty: true })
-                            else if (num(step.government_fee) === category.amount) setValue(`visa_steps.${index}.government_fee`, '', { shouldDirty: true })
-                          }}
+                          onChange={(paidYes) => answerPaid(index, category.amount, paidYes)}
+                          onLockedChange={(paidYes) => lock.requestUnlock('typing', () => answerPaid(index, category.amount, paidYes))}
                         />
                       )}
                     </TableCell>

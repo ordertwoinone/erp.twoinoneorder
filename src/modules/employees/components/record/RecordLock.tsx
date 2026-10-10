@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Eye, EyeOff, Loader2, LockKeyhole, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -23,6 +23,7 @@ export function RecordLockProvider({ isNew, children }: { isNew: boolean; childr
   const [password, setPassword] = useState('')
   const [show, setShow] = useState(false)
   const [checking, setChecking] = useState(false)
+  const afterUnlock = useRef<(() => void) | null>(null)
 
   const canView = useCallback((key: string) => sectionAccess(key)?.viewAny.some(hasPermission) ?? true, [hasPermission])
   const canEdit = useCallback((key: string) => sectionAccess(key)?.editAny.some(hasPermission) ?? false, [hasPermission])
@@ -36,13 +37,18 @@ export function RecordLockProvider({ isNew, children }: { isNew: boolean; childr
   )
 
   const requestUnlock = useCallback(
-    (key: string) => {
+    (key: string, onUnlocked?: () => void) => {
       if (key !== 'all' && !canEdit(key)) {
         toast.error("You don't have permission to edit this section")
         return
       }
-      if (verified) applyUnlock(key)
-      else setPending(key)
+      if (verified) {
+        applyUnlock(key)
+        onUnlocked?.()
+      } else {
+        afterUnlock.current = onUnlocked ?? null
+        setPending(key)
+      }
     },
     [verified, applyUnlock, canEdit],
   )
@@ -58,6 +64,8 @@ export function RecordLockProvider({ isNew, children }: { isNew: boolean; childr
     }
     setVerified(true)
     applyUnlock(pending!)
+    afterUnlock.current?.()
+    afterUnlock.current = null
     setPending(null)
     setPassword('')
     toast.success(pending === 'all' ? 'Edit mode on — all sections you can edit are unlocked' : 'Section unlocked')
@@ -79,7 +87,14 @@ export function RecordLockProvider({ isNew, children }: { isNew: boolean; childr
   return (
     <RecordLockContext.Provider value={value}>
       {children}
-      <Dialog open={pending !== null} onOpenChange={(open) => !open && setPending(null)}>
+      <Dialog
+        open={pending !== null}
+        onOpenChange={(open) => {
+          if (open) return
+          afterUnlock.current = null
+          setPending(null)
+        }}
+      >
         <DialogContent className="sm:max-w-sm" showCloseButton={false}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">

@@ -6,8 +6,12 @@ export interface RecordLockValue {
   isUnlocked: (sectionKey: string) => boolean
   canView: (sectionKey: string) => boolean
   canEdit: (sectionKey: string) => boolean
-  /** Asks for the password once per visit, then unlocks the section (or all with 'all'). */
-  requestUnlock: (sectionKey: string | 'all') => void
+  /**
+   * Asks for the password once per visit, then unlocks the section (or all with
+   * 'all'). `onUnlocked` runs once the section is open — e.g. to apply the click
+   * that asked for the unlock.
+   */
+  requestUnlock: (sectionKey: string | 'all', onUnlocked?: () => void) => void
   lockAll: () => void
   anyUnlocked: boolean
 }
