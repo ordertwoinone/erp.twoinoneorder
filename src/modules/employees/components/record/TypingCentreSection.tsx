@@ -16,7 +16,8 @@ import { FINE_STATUSES, PAID_BY, PAYMENT_METHODS, TYPING_PROCESSES, VISA_STEPS, 
 import { openEmployeeFile, validateDocumentFile } from '../../hooks/useEmployeeRecord'
 import { useCompanyCategoriesQuery } from '../../hooks/useCompanyCategories'
 import { Field, OptionSelect, SectionCard } from './RecordUi'
-import { TONE_CLASSES, countdown, newId, num, shortDate } from './recordUtils'
+import { useRecordLock } from './recordLockContext'
+import { TONE_CLASSES, countdown, newId, num, shortDate, stepPaid } from './recordUtils'
 
 const STATUS_STYLES: Record<string, string> = {
   not_started: 'border-warning/40 bg-warning/15 text-warning-foreground',
@@ -40,7 +41,7 @@ const LEGEND = [
 const NO_CATEGORY = '__none__'
 
 /** Yes / No pill pair; null means "not answered yet". */
-function PaidQuestion({ value, onChange }: { value: boolean | null | undefined; onChange: (v: boolean) => void }) {
+function PaidQuestion({ value, locked, onChange }: { value: boolean | null | undefined; locked: boolean; onChange: (v: boolean) => void }) {
   return (
     <div className="mt-1 flex items-center gap-1.5 text-[11px]">
       <span className="text-muted-foreground">Paid?</span>
@@ -53,11 +54,17 @@ function PaidQuestion({ value, onChange }: { value: boolean | null | undefined; 
           type="button"
           aria-pressed={value === o.v}
           onClick={() => onChange(o.v)}
-          className={cn('rounded border px-2 py-0.5 font-medium transition-colors', value === o.v ? o.on : 'bg-muted/40 text-muted-foreground hover:text-foreground')}
+          disabled={locked}
+          title={locked ? 'Unlock this section (Unlock to edit) to change' : undefined}
+          className={cn(
+            'rounded border px-2 py-0.5 font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50',
+            value === o.v ? o.on : 'bg-muted/40 text-muted-foreground enabled:hover:text-foreground',
+          )}
         >
           {o.label}
         </button>
       ))}
+      {locked && value == null && <span className="text-muted-foreground">· unlock to answer</span>}
     </div>
   )
 }
@@ -104,16 +111,13 @@ export function TypingCentreSection({ form }: { form: UseFormReturn<EmployeeReco
   const payments = watch('typing_payments')
   const { fields: paymentRows, append, remove } = useFieldArray({ control, name: 'typing_payments' })
   const [open, setOpen] = useState<string | null>(null)
+  const locked = !useRecordLock().isUnlocked('typing')
   const { data: categories = [] } = useCompanyCategoriesQuery()
   const categoriesById = new Map(categories.map((c) => [c.id, c]))
 
   const stepAmount = (index: number) => num(steps[index]?.government_fee) + num(steps[index]?.other_charges)
   const ledgerPaid = (key: string) => payments.filter((p) => p.step_key === key).reduce((s, p) => s + num(p.payment_amount), 0)
-  /** A company category marked "Paid: Yes" counts the step amount as paid; otherwise the payment record decides. */
-  const paidFor = (key: string, index: number) => {
-    const st = steps[index]
-    return st?.company_category_id && st.category_paid ? stepAmount(index) : ledgerPaid(key)
-  }
+  const paidFor = (key: string, index: number) => (steps[index] ? stepPaid(steps[index], ledgerPaid(key)) : 0)
   const lastPaymentDate = (key: string) =>
     payments
       .filter((p) => p.step_key === key && p.payment_date)
@@ -234,10 +238,13 @@ export function TypingCentreSection({ form }: { form: UseFormReturn<EmployeeReco
                         value={step.company_category_id ?? NO_CATEGORY}
                         onValueChange={(v) => {
                           const picked = v === NO_CATEGORY ? undefined : categoriesById.get(v)
+                          // Changing the category undoes the amount the previous "Paid: Yes" filled in,
+                          // and asks the paid question again.
+                          if (category && step.category_paid && num(step.government_fee) === category.amount) {
+                            setValue(`visa_steps.${index}.government_fee`, '', { shouldDirty: true })
+                          }
                           setValue(`visa_steps.${index}.company_category_id`, picked ? v : null, { shouldDirty: true })
-                          // A new pick asks the paid question again; its amount becomes the step amount.
                           setValue(`visa_steps.${index}.category_paid`, null, { shouldDirty: true })
-                          if (picked) setValue(`visa_steps.${index}.government_fee`, Number(picked.amount), { shouldDirty: true })
                         }}
                       >
                         <SelectTrigger className="h-8 w-full text-xs" aria-label={`${def.label} company category`}>
@@ -263,7 +270,17 @@ export function TypingCentreSection({ form }: { form: UseFormReturn<EmployeeReco
                         </SelectContent>
                       </Select>
                       {category && (
-                        <PaidQuestion value={step.category_paid} onChange={(v) => setValue(`visa_steps.${index}.category_paid`, v, { shouldDirty: true })} />
+                        <PaidQuestion
+                          locked={locked}
+                          value={step.category_paid}
+                          onChange={(paidYes) => {
+                            setValue(`visa_steps.${index}.category_paid`, paidYes, { shouldDirty: true })
+                            // Yes: the category amount becomes the step amount (and so the paid amount).
+                            // No: take back an amount that Yes filled in.
+                            if (paidYes) setValue(`visa_steps.${index}.government_fee`, category.amount, { shouldDirty: true })
+                            else if (num(step.government_fee) === category.amount) setValue(`visa_steps.${index}.government_fee`, '', { shouldDirty: true })
+                          }}
+                        />
                       )}
                     </TableCell>
                     <TableCell className="min-w-28">

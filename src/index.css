@@ -242,3 +242,28 @@ fieldset.record-view:disabled button:disabled {
 fieldset.record-view:disabled button:disabled:is([data-state='on'], [data-state='checked'], [aria-pressed='true'], [aria-checked='true']) {
   opacity: 1;
 }
+
+/* Printing: a page that renders a .print-sheet (e.g. the employee record)
+   prints only that sheet — the app shell, sidebar and form are hidden. */
+.print-sheet {
+  display: none;
+}
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+  body:has(> .print-sheet) > :not(.print-sheet) {
+    display: none !important;
+  }
+  body:has(> .print-sheet) {
+    background: #fff !important;
+  }
+  .print-sheet {
+    display: block;
+    color-scheme: light;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}
+

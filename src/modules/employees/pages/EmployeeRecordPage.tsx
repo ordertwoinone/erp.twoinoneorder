@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ArrowLeft, Eye, Loader2, Save, Trash2 } from 'lucide-react'
+import { ArrowLeft, Eye, Loader2, Printer, Save, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { ConfirmActionDialog } from '@/components/shared/ConfirmActionDialog'
@@ -24,6 +24,7 @@ import {
   type ScannedEmployeeFields,
 } from '../hooks/useEmployeeRecord'
 import { EmployeeHeaderSection, EmployeeKpiStrip, RecordModeBar } from '../components/record/EmployeeHeaderSection'
+import { EmployeePrintSheet } from '../components/record/EmployeePrintSheet'
 import { RecordLockProvider } from '../components/record/RecordLock'
 import { useRecordLock } from '../components/record/recordLockContext'
 import { TypingCentreSection } from '../components/record/TypingCentreSection'
@@ -360,24 +361,30 @@ export default function EmployeeRecordPage() {
           <ArrowLeft className="size-4" /> Employees
           {isNew && <span className="ml-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">New employee</span>}
         </Link>
-        {!isNew && (
-          <ConfirmActionDialog
-            trigger={
-              <Button type="button" variant="ghost" size="sm" className="text-destructive hover:text-destructive">
-                <Trash2 /> Delete employee
-              </Button>
-            }
-            title={`Delete ${record?.employee.full_name ?? 'this employee'}?`}
-            description="This permanently removes the employee with their documents, vacations and replacement shortlist. Employees with payroll or other financial history can't be deleted — set them to Terminated or Resigned instead."
-            confirmLabel="Delete employee"
-            destructive
-            onConfirm={async () => {
-              await deleteEmployee.mutateAsync(employeeId)
-              navigate('/employees', { replace: true })
-            }}
-          />
-        )}
+        <div className="flex items-center gap-1">
+          <Button type="button" variant="outline" size="sm" onClick={() => window.print()}>
+            <Printer /> Print
+          </Button>
+          {!isNew && (
+            <ConfirmActionDialog
+              trigger={
+                <Button type="button" variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+                  <Trash2 /> Delete employee
+                </Button>
+              }
+              title={`Delete ${record?.employee.full_name ?? 'this employee'}?`}
+              description="This permanently removes the employee with their documents, vacations and replacement shortlist. Employees with payroll or other financial history can't be deleted — set them to Terminated or Resigned instead."
+              confirmLabel="Delete employee"
+              destructive
+              onConfirm={async () => {
+                await deleteEmployee.mutateAsync(employeeId)
+                navigate('/employees', { replace: true })
+              }}
+            />
+          )}
+        </div>
       </div>
+      <EmployeePrintSheet form={form} restaurants={restaurants} photoPath={record?.photo?.storage_path} documents={documents} />
 
       <RecordModeBar isNew={isNew} />
       <EmployeeHeaderSection form={form} restaurants={restaurants} photoPath={record?.photo?.storage_path} />

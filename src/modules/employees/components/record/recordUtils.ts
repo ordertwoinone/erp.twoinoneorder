@@ -36,6 +36,18 @@ export const TONE_CLASSES: Record<CountdownTone, string> = {
 
 export const newId = () => crypto.randomUUID()
 
+/**
+ * What a typing-centre step counts as paid: its full amount when a company
+ * category is picked and marked "Paid: Yes", otherwise the payments recorded
+ * against it. Shared by the step table and the printout.
+ */
+export function stepPaid(
+  step: { government_fee?: unknown; other_charges?: unknown; company_category_id?: string | null; category_paid?: boolean | null },
+  ledgerPaid: number,
+) {
+  return step.company_category_id && step.category_paid ? num(step.government_fee) + num(step.other_charges) : ledgerPaid
+}
+
 /** Orders basis: rate is AED per order. Sales bases: rate is a percentage of sales. */
 export function computeIncentive(
   row: { eligible_sales?: unknown; orders_count?: unknown; incentive_rate?: unknown },
