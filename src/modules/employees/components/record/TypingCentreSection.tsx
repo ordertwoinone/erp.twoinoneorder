@@ -16,7 +16,7 @@ import { FINE_STATUSES, PAID_BY, PAYMENT_METHODS, TYPING_PROCESSES, VISA_STEPS, 
 import { openEmployeeFile, validateDocumentFile } from '../../hooks/useEmployeeRecord'
 import { useCompanyCategoriesQuery } from '../../hooks/useCompanyCategories'
 import { Field, OptionSelect, SectionCard } from './RecordUi'
-import { TONE_CLASSES, countdown, newId, num, shortDate } from './recordUtils'
+import { TONE_CLASSES, countdown, newId, num, shortDate, stepPaid } from './recordUtils'
 
 const STATUS_STYLES: Record<string, string> = {
   not_started: 'border-warning/40 bg-warning/15 text-warning-foreground',
@@ -85,7 +85,11 @@ export function TypingCentreSection({ form }: { form: UseFormReturn<EmployeeReco
   const selectedCategoryId = watch('typing_company_category_id')
 
   const stepAmount = (index: number) => num(steps[index]?.government_fee) + num(steps[index]?.other_charges)
-  const paidFor = (key: string) => payments.filter((p) => p.step_key === key).reduce((s, p) => s + num(p.payment_amount), 0)
+  const selectedCategory = categories.find((c) => c.id === selectedCategoryId)
+  const recordedFor = (key: string) => payments.filter((p) => p.step_key === key).reduce((s, p) => s + num(p.payment_amount), 0)
+  /** Steps covered by the selected company category count as paid in full. */
+  const paidFor = (key: string, index: number) =>
+    stepPaid(stepAmount(index), recordedFor(key), selectedCategory?.step_amounts[key] !== undefined)
 
   /**
    * Picking a company category fills each step's amount from its template.
@@ -119,7 +123,7 @@ export function TypingCentreSection({ form }: { form: UseFormReturn<EmployeeReco
   const totalCost = steps.reduce((s, st) => s + num(st.government_fee) + num(st.other_charges), 0)
   const stepKeys = new Set(VISA_STEPS.map((s) => s.key))
   const totalPaid =
-    VISA_STEPS.reduce((s, def) => s + paidFor(def.key), 0) +
+    VISA_STEPS.reduce((s, def, i) => s + paidFor(def.key, i), 0) +
     payments.filter((p) => !stepKeys.has(p.step_key)).reduce((s, p) => s + num(p.payment_amount), 0)
   const totalFines = steps.reduce((s, st) => s + num(st.fine_amount), 0)
 
@@ -197,7 +201,7 @@ export function TypingCentreSection({ form }: { form: UseFormReturn<EmployeeReco
               const step = steps[index]
               if (!step) return null
               const amount = stepAmount(index)
-              const paid = paidFor(def.key)
+              const paid = paidFor(def.key, index)
               const balance = Math.max(amount - paid, 0)
               const cd = countdown(step.expiry_date, step.expiry_not_applicable)
               const isOpen = open === def.key
@@ -337,8 +341,8 @@ export function TypingCentreSection({ form }: { form: UseFormReturn<EmployeeReco
         </Table>
       </div>
       <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-        <Info className="size-3.5 text-primary" /> Track start and expiry for each step. Tick N/A when no expiry applies. Paid comes from the payment record below. Pick a company
-        category above to fill in the step amounts.
+        <Info className="size-3.5 text-primary" /> Track start and expiry for each step. Tick N/A when no expiry applies. Pick a company category above to fill in the step amounts —
+        steps it covers count as paid. Other steps take Paid from the payment record below.
       </p>
 
       <div className="mt-4 rounded-lg border border-primary/20 bg-primary/5 p-4">

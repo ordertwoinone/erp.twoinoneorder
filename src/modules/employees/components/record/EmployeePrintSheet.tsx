@@ -35,7 +35,7 @@ import {
 } from '../../employeeOptions'
 import { useSignedFileUrl } from '../../hooks/useEmployeeRecord'
 import { useCompanyCategoriesQuery } from '../../hooks/useCompanyCategories'
-import { countdown, num, shortDate } from './recordUtils'
+import { countdown, num, shortDate, stepPaid } from './recordUtils'
 
 const money = (v: unknown) => (v === '' || v === null || v === undefined ? '—' : `AED ${num(v).toLocaleString('en-AE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)
 const date = (v: string | null | undefined) => (v ? shortDate(v) : '—')
@@ -111,7 +111,9 @@ export function EmployeePrintSheet({
   const v = form.watch()
   const { data: photo } = useSignedFileUrl(photoPath)
   const { data: categories = [] } = useCompanyCategoriesQuery()
-  const categoryName = categories.find((c) => c.id === v.typing_company_category_id)?.name ?? '—'
+  const category = categories.find((c) => c.id === v.typing_company_category_id)
+  const categoryName = category?.name ?? '—'
+  const paidFor = (key: string, amount: number) => stepPaid(amount, ledger(key), category?.step_amounts[key] !== undefined)
   const branch = restaurants.find((r) => r.id === v.current_restaurant_id)?.name ?? '—'
 
   const ledger = (key: string) => (v.typing_payments ?? []).filter((p) => p.step_key === key).reduce((s, p) => s + num(p.payment_amount), 0)
@@ -122,7 +124,7 @@ export function EmployeePrintSheet({
   const stepTotals = steps.reduce(
     (t, { def, step }) => {
       const amount = num(step!.government_fee) + num(step!.other_charges)
-      const paid = ledger(def.key)
+      const paid = paidFor(def.key, amount)
       return { cost: t.cost + amount, paid: t.paid + paid, fines: t.fines + num(step!.fine_amount) }
     },
     { cost: 0, paid: 0, fines: 0 },
@@ -245,7 +247,7 @@ export function EmployeePrintSheet({
               rows={usedSteps.map(({ def, step }) => {
                 const s = step!
                 const amount = num(s.government_fee) + num(s.other_charges)
-                const paid = ledger(def.key)
+                const paid = paidFor(def.key, amount)
                 return [
                   VISA_STEPS.indexOf(def) + 1,
                   `${def.label}${s.step_option ? ` (${s.step_option})` : ''}`,

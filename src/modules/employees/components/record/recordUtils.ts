@@ -36,6 +36,17 @@ export const TONE_CLASSES: Record<CountdownTone, string> = {
 
 export const newId = () => crypto.randomUUID()
 
+/**
+ * What a typing-centre step counts as paid. A step covered by the employee's
+ * company category (its template has an amount for it) is paid in full — Paid
+ * shows the step amount; otherwise Paid is what the payment record holds. The
+ * larger figure wins so recorded payments are never hidden. Shared by the step
+ * table and the printout.
+ */
+export function stepPaid(amount: number, recordedPayments: number, coveredByCategory: boolean) {
+  return coveredByCategory ? Math.max(amount, recordedPayments) : recordedPayments
+}
+
 /** Orders basis: rate is AED per order. Sales bases: rate is a percentage of sales. */
 export function computeIncentive(
   row: { eligible_sales?: unknown; orders_count?: unknown; incentive_rate?: unknown },
