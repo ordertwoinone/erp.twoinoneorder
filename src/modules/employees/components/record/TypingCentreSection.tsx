@@ -16,8 +16,7 @@ import { FINE_STATUSES, PAID_BY, PAYMENT_METHODS, TYPING_PROCESSES, VISA_STEPS, 
 import { openEmployeeFile, validateDocumentFile } from '../../hooks/useEmployeeRecord'
 import { useCompanyCategoriesQuery } from '../../hooks/useCompanyCategories'
 import { Field, OptionSelect, SectionCard } from './RecordUi'
-import { useRecordLock } from './recordLockContext'
-import { TONE_CLASSES, countdown, newId, num, shortDate, stepPaid } from './recordUtils'
+import { TONE_CLASSES, countdown, newId, num, shortDate } from './recordUtils'
 
 const STATUS_STYLES: Record<string, string> = {
   not_started: 'border-warning/40 bg-warning/15 text-warning-foreground',
@@ -39,62 +38,6 @@ const LEGEND = [
 ]
 
 const NO_CATEGORY = '__none__'
-
-/**
- * Yes / No pill pair; null means "not answered yet". While the section is
- * locked the pills are plain elements (a disabled fieldset would swallow the
- * click on a real button): clicking asks for the password and then applies
- * the answer.
- */
-function PaidQuestion({
-  value,
-  locked,
-  onChange,
-  onLockedChange,
-}: {
-  value: boolean | null | undefined
-  locked: boolean
-  onChange: (v: boolean) => void
-  onLockedChange: (v: boolean) => void
-}) {
-  return (
-    <div className="mt-1 flex items-center gap-1.5 text-[11px]">
-      <span className="text-muted-foreground">Paid?</span>
-      {[
-        { v: true, label: 'Yes', on: 'border-success bg-success text-white' },
-        { v: false, label: 'No', on: 'border-destructive bg-destructive text-white' },
-      ].map((o) => {
-        const className = cn(
-          'cursor-pointer rounded border px-2 py-0.5 font-medium transition-colors',
-          value === o.v ? o.on : 'bg-muted/40 text-muted-foreground hover:text-foreground',
-        )
-        return locked ? (
-          <span
-            key={o.label}
-            role="button"
-            tabIndex={0}
-            aria-pressed={value === o.v}
-            title="Asks for your password, then saves this answer"
-            className={className}
-            onClick={() => onLockedChange(o.v)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault()
-                onLockedChange(o.v)
-              }
-            }}
-          >
-            {o.label}
-          </span>
-        ) : (
-          <button key={o.label} type="button" aria-pressed={value === o.v} onClick={() => onChange(o.v)} className={className}>
-            {o.label}
-          </button>
-        )
-      })}
-    </div>
-  )
-}
 
 function FilePick({ name, path, onPick }: { name: string | null | undefined; path: string | null | undefined; onPick: (file: File) => void }) {
   return (
@@ -138,22 +81,33 @@ export function TypingCentreSection({ form }: { form: UseFormReturn<EmployeeReco
   const payments = watch('typing_payments')
   const { fields: paymentRows, append, remove } = useFieldArray({ control, name: 'typing_payments' })
   const [open, setOpen] = useState<string | null>(null)
-  const lock = useRecordLock()
-  const locked = !lock.isUnlocked('typing')
   const { data: categories = [] } = useCompanyCategoriesQuery()
-  const categoriesById = new Map(categories.map((c) => [c.id, c]))
+  const selectedCategoryId = watch('typing_company_category_id')
 
   const stepAmount = (index: number) => num(steps[index]?.government_fee) + num(steps[index]?.other_charges)
-  const ledgerPaid = (key: string) => payments.filter((p) => p.step_key === key).reduce((s, p) => s + num(p.payment_amount), 0)
-  const paidFor = (key: string, index: number) => (steps[index] ? stepPaid(steps[index], ledgerPaid(key)) : 0)
+  const paidFor = (key: string) => payments.filter((p) => p.step_key === key).reduce((s, p) => s + num(p.payment_amount), 0)
 
-  /** Yes: the category amount becomes the step amount (and so the paid amount). No: take back an amount Yes filled in. */
-  const answerPaid = (index: number, categoryAmount: number, paidYes: boolean) => {
-    setValue(`visa_steps.${index}.category_paid`, paidYes, { shouldDirty: true })
-    if (paidYes) setValue(`visa_steps.${index}.government_fee`, categoryAmount, { shouldDirty: true })
-    else if (num(form.getValues(`visa_steps.${index}.government_fee`)) === categoryAmount) {
-      setValue(`visa_steps.${index}.government_fee`, '', { shouldDirty: true })
-    }
+  /**
+   * Picking a company category fills each step's amount from its template.
+   * Amounts that came from the previously picked template are cleared first;
+   * amounts typed by hand on steps the new template leaves blank are kept.
+   */
+  function applyCategory(categoryId: string) {
+    const category = categories.find((c) => c.id === categoryId)
+    const previous = categories.find((c) => c.id === selectedCategoryId)
+    setValue('typing_company_category_id', category ? categoryId : null, { shouldDirty: true })
+    let filled = 0
+    VISA_STEPS.forEach((def, index) => {
+      const amount = category?.step_amounts[def.key]
+      const current = form.getValues(`visa_steps.${index}.government_fee`)
+      if (amount !== undefined) {
+        setValue(`visa_steps.${index}.government_fee`, amount, { shouldDirty: true })
+        filled++
+      } else if (previous?.step_amounts[def.key] !== undefined && num(current) === previous.step_amounts[def.key]) {
+        setValue(`visa_steps.${index}.government_fee`, '', { shouldDirty: true })
+      }
+    })
+    if (category) toast.success(`${category.name}: amounts filled for ${filled} step${filled === 1 ? '' : 's'}`)
   }
   const lastPaymentDate = (key: string) =>
     payments
@@ -165,13 +119,13 @@ export function TypingCentreSection({ form }: { form: UseFormReturn<EmployeeReco
   const totalCost = steps.reduce((s, st) => s + num(st.government_fee) + num(st.other_charges), 0)
   const stepKeys = new Set(VISA_STEPS.map((s) => s.key))
   const totalPaid =
-    VISA_STEPS.reduce((s, def, i) => s + paidFor(def.key, i), 0) +
+    VISA_STEPS.reduce((s, def) => s + paidFor(def.key), 0) +
     payments.filter((p) => !stepKeys.has(p.step_key)).reduce((s, p) => s + num(p.payment_amount), 0)
   const totalFines = steps.reduce((s, st) => s + num(st.fine_amount), 0)
 
   return (
     <SectionCard icon={ClipboardList} title="Typing centre payments" lockKey="typing">
-      <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-[1.4fr_1fr_1fr_1fr_1fr]">
+      <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-[1.4fr_1fr_1fr_1fr_1fr_1.1fr]">
         <div>
           <p className="font-semibold">UAE Employment Visa Process – Step by Step</p>
           <p className="text-xs text-muted-foreground">A payment tracker you maintain — not authoritative legal guidance.</p>
@@ -192,6 +146,31 @@ export function TypingCentreSection({ form }: { form: UseFormReturn<EmployeeReco
             render={({ field }) => <OptionSelect value={field.value} onChange={field.onChange} options={TYPING_PROCESSES} placeholder="Select process" className="h-9" />}
           />
         </Field>
+        <Field label="Company category" hint="Fills each step's amount">
+          <Select value={selectedCategoryId ?? NO_CATEGORY} onValueChange={(v) => applyCategory(v === NO_CATEGORY ? '' : v)}>
+            <SelectTrigger className="h-9 w-full" aria-label="Company category">
+              <SelectValue placeholder="Select category" />
+            </SelectTrigger>
+            <SelectContent className="max-h-72">
+              <SelectItem value={NO_CATEGORY}>No category</SelectItem>
+              {categories
+                .filter((c) => c.is_active || c.id === selectedCategoryId)
+                .map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+              {categories.length === 0 && (
+                <p className="px-2 py-1.5 text-xs text-muted-foreground">
+                  No categories yet —{' '}
+                  <Link to="/employees/company-categories" className="text-primary hover:underline">
+                    add them
+                  </Link>
+                </p>
+              )}
+            </SelectContent>
+          </Select>
+        </Field>
       </div>
 
       <div className="overflow-x-auto rounded-lg border">
@@ -203,7 +182,6 @@ export function TypingCentreSection({ form }: { form: UseFormReturn<EmployeeReco
               <TableHead>Process start date</TableHead>
               <TableHead>Expiry date</TableHead>
               <TableHead>Days left</TableHead>
-              <TableHead>Company category</TableHead>
               <TableHead className="text-right">Amount (AED)</TableHead>
               <TableHead className="text-right">Paid (AED)</TableHead>
               <TableHead className="text-right">Balance (AED)</TableHead>
@@ -219,8 +197,7 @@ export function TypingCentreSection({ form }: { form: UseFormReturn<EmployeeReco
               const step = steps[index]
               if (!step) return null
               const amount = stepAmount(index)
-              const paid = paidFor(def.key, index)
-              const category = step.company_category_id ? categoriesById.get(step.company_category_id) : undefined
+              const paid = paidFor(def.key)
               const balance = Math.max(amount - paid, 0)
               const cd = countdown(step.expiry_date, step.expiry_not_applicable)
               const isOpen = open === def.key
@@ -270,57 +247,11 @@ export function TypingCentreSection({ form }: { form: UseFormReturn<EmployeeReco
                     <TableCell>
                       <span className={cn('inline-flex rounded-md border px-2 py-0.5 text-[11px] font-medium whitespace-nowrap', TONE_CLASSES[cd.tone])}>{cd.label}</span>
                     </TableCell>
-                    <TableCell className="min-w-48">
-                      <Select
-                        value={step.company_category_id ?? NO_CATEGORY}
-                        onValueChange={(v) => {
-                          const picked = v === NO_CATEGORY ? undefined : categoriesById.get(v)
-                          // Changing the category undoes the amount the previous "Paid: Yes" filled in,
-                          // and asks the paid question again.
-                          if (category && step.category_paid && num(step.government_fee) === category.amount) {
-                            setValue(`visa_steps.${index}.government_fee`, '', { shouldDirty: true })
-                          }
-                          setValue(`visa_steps.${index}.company_category_id`, picked ? v : null, { shouldDirty: true })
-                          setValue(`visa_steps.${index}.category_paid`, null, { shouldDirty: true })
-                        }}
-                      >
-                        <SelectTrigger className="h-8 w-full text-xs" aria-label={`${def.label} company category`}>
-                          <SelectValue placeholder="Select category" />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-72">
-                          <SelectItem value={NO_CATEGORY}>No category</SelectItem>
-                          {categories
-                            .filter((c) => c.is_active || c.id === step.company_category_id)
-                            .map((c) => (
-                              <SelectItem key={c.id} value={c.id}>
-                                {c.name} · {formatCurrency(c.amount)}
-                              </SelectItem>
-                            ))}
-                          {categories.length === 0 && (
-                            <p className="px-2 py-1.5 text-xs text-muted-foreground">
-                              No categories yet —{' '}
-                              <Link to="/employees/company-categories" className="text-primary hover:underline">
-                                add them
-                              </Link>
-                            </p>
-                          )}
-                        </SelectContent>
-                      </Select>
-                      {category && (
-                        <PaidQuestion
-                          locked={locked}
-                          value={step.category_paid}
-                          onChange={(paidYes) => answerPaid(index, category.amount, paidYes)}
-                          onLockedChange={(paidYes) => lock.requestUnlock('typing', () => answerPaid(index, category.amount, paidYes))}
-                        />
-                      )}
-                    </TableCell>
                     <TableCell className="min-w-28">
                       <Input type="number" step="0.01" min="0" placeholder="—" className="h-8 text-right text-xs" {...register(`visa_steps.${index}.government_fee`)} />
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {paid ? formatCurrency(paid) : '—'}
-                      {step.category_paid && category && <p className="text-[11px] text-success">Paid</p>}
                     </TableCell>
                     <TableCell className={cn('text-right tabular-nums', balance > 0 && 'font-medium text-destructive')}>{balance ? formatCurrency(balance) : '—'}</TableCell>
                     <TableCell className="min-w-48">
@@ -377,7 +308,7 @@ export function TypingCentreSection({ form }: { form: UseFormReturn<EmployeeReco
                   </TableRow>
                   {isOpen && (
                     <TableRow className="bg-primary/5 hover:bg-primary/5">
-                      <TableCell colSpan={14} className="p-4">
+                      <TableCell colSpan={13} className="p-4">
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
                           <Field label="Approval date">
                             <Input type="date" className="h-9" {...register(`visa_steps.${index}.approval_date`)} />
@@ -406,8 +337,8 @@ export function TypingCentreSection({ form }: { form: UseFormReturn<EmployeeReco
         </Table>
       </div>
       <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-        <Info className="size-3.5 text-primary" /> Track start and expiry for each step. Tick N/A when no expiry applies. Paid comes from the payment record below,
-        or is the full amount when the company category is marked paid.
+        <Info className="size-3.5 text-primary" /> Track start and expiry for each step. Tick N/A when no expiry applies. Paid comes from the payment record below. Pick a company
+        category above to fill in the step amounts.
       </p>
 
       <div className="mt-4 rounded-lg border border-primary/20 bg-primary/5 p-4">

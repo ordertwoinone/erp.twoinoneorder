@@ -46,10 +46,6 @@ export const visaStepRowSchema = z.object({
   fine_amount: optionalAmount,
   fine_status: optionalText,
   fine_reason: optionalText,
-  /** Company category picked for the step (its amount becomes the step amount). */
-  company_category_id: z.string().nullable().optional(),
-  /** Whether the category amount is already paid (null = not answered). */
-  category_paid: z.boolean().nullable().optional(),
   notes: optionalText,
   attachment_id: z.string().optional().nullable(),
   attachment_name: z.string().optional().nullable(),
@@ -198,6 +194,8 @@ export const employeeRecordSchema = z.object({
   typing_centre_contact: optionalText,
   typing_application_ref: optionalText,
   typing_process: optionalText,
+  /** Company category whose template filled the step amounts. */
+  typing_company_category_id: z.string().nullable().optional(),
   labour_fine_status: optionalText,
   labour_fine_checked_date: optionalDate,
   labour_fine_reference: optionalText,

@@ -3,23 +3,31 @@ import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase/client'
 import type { Json } from '@/types/database'
 
+/** Amount per typing-centre step key (offer_letter, work_permit, ...). */
+export type StepAmounts = Record<string, number>
+
+/** A template of amounts for the typing-centre visa steps. */
 export interface CompanyCategory {
   id: string
   name: string
-  amount: number
   description: string | null
   is_active: boolean
+  step_amounts: StepAmounts
 }
 
 export interface CompanyCategoryInput {
   id?: string
   name: string
-  amount: number | ''
   description: string
   is_active: boolean
+  /** Blank ('') means no amount for that step. */
+  step_amounts: Record<string, number | ''>
 }
 
-/** Every company category with its amount. */
+export function stepAmountsTotal(amounts: Record<string, number | ''>) {
+  return Object.values(amounts).reduce<number>((s, v) => s + (v === '' ? 0 : Number(v) || 0), 0)
+}
+
 export function useCompanyCategoriesQuery() {
   return useQuery({
     queryKey: ['company-categories'],
@@ -27,11 +35,16 @@ export function useCompanyCategoriesQuery() {
     queryFn: async (): Promise<CompanyCategory[]> => {
       const { data, error } = await supabase
         .from('company_categories')
-        .select('id, name, amount, description, is_active')
+        .select('id, name, description, is_active, step_amounts')
         .order('sort_order')
         .order('name')
       if (error) throw error
-      return data.map((c) => ({ ...c, amount: Number(c.amount) }))
+      return data.map((c) => {
+        const raw = (c.step_amounts ?? {}) as Record<string, unknown>
+        const step_amounts: StepAmounts = {}
+        for (const [key, value] of Object.entries(raw)) if (value !== null && value !== '') step_amounts[key] = Number(value)
+        return { id: c.id, name: c.name, description: c.description, is_active: c.is_active, step_amounts }
+      })
     },
   })
 }
@@ -40,13 +53,15 @@ export function useSaveCompanyCategory() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (input: CompanyCategoryInput) => {
+      const amounts: Record<string, number> = {}
+      for (const [key, value] of Object.entries(input.step_amounts)) if (value !== '') amounts[key] = Number(value)
       const { data, error } = await supabase.rpc('save_company_category', {
         payload: {
           id: input.id ?? null,
           name: input.name,
-          amount: input.amount === '' ? 0 : input.amount,
           description: input.description,
           is_active: input.is_active,
+          step_amounts: amounts,
         } as unknown as Json,
       })
       if (error) throw error

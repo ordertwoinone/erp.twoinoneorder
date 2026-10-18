@@ -953,6 +953,7 @@ export interface Database {
           typing_centre_contact: string | null
           typing_application_ref: string | null
           typing_process: string | null
+          typing_company_category_id: string | null
           labour_fine_status: string | null
           labour_fine_checked_date: string | null
           labour_fine_reference: string | null
@@ -1069,6 +1070,7 @@ export interface Database {
           id: string
           name: string
           amount: number
+          step_amounts: Json
           description: string | null
           is_active: boolean
           sort_order: number
