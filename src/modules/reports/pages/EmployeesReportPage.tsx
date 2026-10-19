@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Link, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { differenceInCalendarDays, format, isValid, parseISO } from 'date-fns'
@@ -15,6 +16,7 @@ import {
   FileCheck2,
   Loader2,
   Plus,
+  Printer,
   Search,
   TriangleAlert,
   UserRound,
@@ -390,6 +392,109 @@ function SortHead({
 }
 
 // ---------------------------------------------------------------------------
+// Printout
+// ---------------------------------------------------------------------------
+
+function PrintExpiry({ value, days, na }: { value: string | null; days: number | null; na?: boolean }) {
+  if (na) return <>N/A</>
+  if (!value || days === null) return <>—</>
+  const text = format(parseISO(value), 'd MMM yy')
+  if (days < 0) return <b className="text-red-700">! {text}</b>
+  if (days <= 30) return <b className="text-amber-700">{text}</b>
+  return <>{text}</>
+}
+
+/**
+ * Landscape A4 printout of the rows currently shown (after filters and sort).
+ * Hidden on screen; the print CSS in index.css prints only this sheet.
+ */
+function ReportPrintSheet({
+  rows,
+  kpis,
+  filtersText,
+  today,
+}: {
+  rows: ReportRow[]
+  kpis: { total: number; active: number; expiring: number; expired: number; missingDocs: number; fines: number }
+  filtersText: string
+  today: Date
+}) {
+  return createPortal(
+    <div className="print-sheet print-landscape bg-white text-[8pt] text-neutral-900">
+      <header className="mb-3 flex items-end justify-between border-b-2 border-neutral-900 pb-2">
+        <div>
+          <h1 className="text-[15pt] leading-tight font-bold">Employees Report</h1>
+          <p className="text-[8pt] text-neutral-600">{filtersText}</p>
+        </div>
+        <p className="text-right text-[8pt] text-neutral-600">Printed {format(new Date(), 'd MMM yyyy, h:mm a')}</p>
+      </header>
+
+      <div className="mb-3 grid grid-cols-6 gap-2 text-center">
+        {[
+          ['Total employees', String(kpis.total)],
+          ['Active', String(kpis.active)],
+          ['Expiring within 30 days', String(kpis.expiring)],
+          ['Expired', String(kpis.expired)],
+          ['Missing documents', String(kpis.missingDocs)],
+          ['Total labour fines', formatCurrency(kpis.fines)],
+        ].map(([label, value]) => (
+          <div key={label} className="border border-neutral-300 px-2 py-1.5">
+            <p className="text-[7pt] text-neutral-500 uppercase">{label}</p>
+            <p className="text-[12pt] font-bold">{value}</p>
+          </div>
+        ))}
+      </div>
+
+      <table className="w-full border-collapse text-[7.5pt]">
+        <thead>
+          <tr className="bg-neutral-100">
+            {['#', 'Employee', 'Branch', 'Position', 'Nationality', 'Visa status', 'Labour card', 'Work permit', 'Visa', 'Emirates ID', 'Insurance', 'Passport', 'Fine (AED)', 'Docs'].map(
+              (h) => (
+                <th key={h} className="border border-neutral-400 px-1 py-1 text-left font-semibold">
+                  {h}
+                </th>
+              ),
+            )}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={r.id} className="break-inside-avoid">
+              <td className="border border-neutral-300 px-1 py-0.5 text-center">{i + 1}</td>
+              <td className="border border-neutral-300 px-1 py-0.5">
+                <b>{r.full_name}</b>
+                <br />
+                <span className="text-neutral-500">{r.employee_code}</span>
+              </td>
+              <td className="border border-neutral-300 px-1 py-0.5">{r.branch}</td>
+              <td className="border border-neutral-300 px-1 py-0.5 uppercase">{r.job_title || '—'}</td>
+              <td className="border border-neutral-300 px-1 py-0.5">{r.nationality || '—'}</td>
+              <td className="border border-neutral-300 px-1 py-0.5">{r.visa_status ? optionLabel(VISA_STATUSES, r.visa_status) : '—'}</td>
+              {EXPIRIES.map((e) => (
+                <td key={e.key} className="border border-neutral-300 px-1 py-0.5 whitespace-nowrap">
+                  <PrintExpiry value={r[e.key]} days={daysUntil(r[e.key], today)} na={e.key === 'work_permit_expiry' && r.work_permit_na} />
+                </td>
+              ))}
+              <td className={cn('border border-neutral-300 px-1 py-0.5 text-right whitespace-nowrap', r.labour_fine > 0 && 'font-bold text-red-700')}>
+                {r.labour_fine.toLocaleString('en-AE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </td>
+              <td className="border border-neutral-300 px-1 py-0.5 text-center whitespace-nowrap">
+                {docScore(r)}/{CHECKLIST.length}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="mt-2 text-[7pt] text-neutral-500">
+        {rows.length} employee{rows.length === 1 ? '' : 's'} · <b className="text-red-700">! red</b> = expired · <b className="text-amber-700">amber</b> = expires
+        within 30 days · Docs = 20-point record checklist
+      </p>
+    </div>,
+    document.body,
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 
@@ -499,6 +604,26 @@ export default function EmployeesReportPage() {
     }
   }
 
+  const quickLabels: Record<QuickFilter, string> = {
+    all: '',
+    active: 'Active only',
+    expiring: 'Expiring within 30 days',
+    expired: 'Expired',
+    missing_docs: 'Missing documents',
+    fines: 'With labour fines',
+  }
+  const filtersText =
+    [
+      branch === 'all' ? 'All branches' : (restaurants.find((r) => r.id === branch)?.name ?? ''),
+      nationality !== 'all' && nationality,
+      position !== 'all' && position,
+      visaStatus !== 'all' && optionLabel(VISA_STATUSES, visaStatus),
+      quickLabels[quick],
+      term && `Search: “${search.trim()}”`,
+    ]
+      .filter(Boolean)
+      .join(' · ') + ` · ${rows.length} of ${branchRows.length} employees`
+
   const filterSelect = (value: string, onChange: (v: string) => void, all: string, options: { value: string; label: string }[]) => (
     <Select value={value} onValueChange={onChange}>
       <SelectTrigger className="h-10 w-full bg-card">
@@ -517,12 +642,16 @@ export default function EmployeesReportPage() {
 
   return (
     <div className="space-y-5">
+      <ReportPrintSheet rows={rows} kpis={kpis} filtersText={filtersText} today={today} />
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Employees Report</h1>
           <p className="text-muted-foreground">Manage your employees, visa status, labour cards, work permits, insurance, fines and documents across your restaurants.</p>
         </div>
         <div className="flex shrink-0 gap-2">
+          <Button variant="outline" onClick={() => window.print()} disabled={rows.length === 0}>
+            <Printer /> Print
+          </Button>
           <Button variant="outline" onClick={exportToExcel} disabled={rows.length === 0}>
             <FileSpreadsheet /> Export
           </Button>
@@ -598,7 +727,10 @@ export default function EmployeesReportPage() {
                     <Avatar row={r} />
                   </td>
                   <td className="px-2 py-2">
-                    <p className="font-semibold whitespace-nowrap uppercase">{r.full_name}</p>
+                    {/* Long names are cut to keep the table compact; the full name shows on hover. */}
+                    <p className="max-w-56 truncate font-semibold uppercase" title={r.full_name}>
+                      {r.full_name}
+                    </p>
                     <p className="text-xs text-muted-foreground">{r.employee_code}</p>
                   </td>
                   <td className="max-w-36 px-2 py-2 text-xs">{r.branch}</td>

@@ -259,6 +259,14 @@ fieldset.record-view:disabled button:disabled:is([data-state='on'], [data-state=
   body:has(> .print-sheet) {
     background: #fff !important;
   }
+  /* Wide reports print landscape. */
+  @page landscape {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+  .print-sheet.print-landscape {
+    page: landscape;
+  }
   .print-sheet {
     display: block;
     color-scheme: light;
