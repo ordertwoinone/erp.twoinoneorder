@@ -43,9 +43,18 @@ export function useScanLabourList() {
         body: JSON.stringify({ importId }),
       })
 
-      const result = await readApiResponse<{ itemCount: number }>(response, 'Labour list scan failed')
+      const result = await readApiResponse<{ itemCount: number; expectedCount: number | null }>(response, 'Labour list scan failed')
 
-      return { importId: importId as string, itemCount: result.itemCount }
+      return { importId: importId as string, itemCount: result.itemCount, expectedCount: result.expectedCount ?? null }
+    },
+    onSuccess: ({ itemCount, expectedCount }) => {
+      if (expectedCount && expectedCount !== itemCount) {
+        toast.warning(`Read ${itemCount} of ${expectedCount} employees`, {
+          description: 'The list says it has more people than were read. Check the review table against the file.',
+        })
+      } else {
+        toast.success(`Read ${itemCount} employee${itemCount === 1 ? '' : 's'} from the list`)
+      }
     },
     onError: (error: Error) => {
       toast.error('Unable to scan labour list', { description: error.message })
@@ -84,12 +93,17 @@ export interface ConfirmLabourListItemInput {
   baseSalary: number | null
   labourPersonNumber: string | null
   nationality: string | null
+  passportNumber: string | null
+  workPermitNumber: string | null
+  workPermitCategory: string | null
+  /** Card expiry printed on the list — saved as labour card and work permit expiry. */
+  cardExpiry: string | null
   labourFineAmount: number | null
   vacations: { start_date: string; end_date: string | null; paid_by: string | null; amount: number | null; notes: string | null }[]
   settlementProofFile: File | null
 }
 
-export function useConfirmLabourListItem() {
+export function useConfirmLabourListItem({ quiet = false }: { quiet?: boolean } = {}) {
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -110,6 +124,10 @@ export function useConfirmLabourListItem() {
           base_salary: input.baseSalary,
           labour_person_number: input.labourPersonNumber,
           nationality: input.nationality,
+          passport_number: input.passportNumber,
+          work_permit_number: input.workPermitNumber,
+          work_permit_category: input.workPermitCategory,
+          card_expiry: input.cardExpiry,
           labour_fine_amount: input.labourFineAmount,
           vacations: input.vacations,
         } as never,
@@ -149,10 +167,10 @@ export function useConfirmLabourListItem() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['labour-list-import-items'] })
       queryClient.invalidateQueries({ queryKey: ['employees'] })
-      toast.success('Employee confirmed')
+      if (!quiet) toast.success('Employee confirmed')
     },
     onError: (error: Error) => {
-      toast.error('Unable to confirm employee', { description: error.message })
+      if (!quiet) toast.error('Unable to confirm employee', { description: error.message })
     },
   })
 }

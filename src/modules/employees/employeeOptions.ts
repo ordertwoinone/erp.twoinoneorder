@@ -258,13 +258,33 @@ export const NATIONALITIES: string[] = [
 // nationality, and in capitals — map the common ones onto NATIONALITIES.
 const COUNTRY_TO_NATIONALITY: Record<string, string> = {
   india: 'Indian', pakistan: 'Pakistani', bangladesh: 'Bangladeshi', philippines: 'Filipino', egypt: 'Egyptian',
-  nepal: 'Nepali', 'sri lanka': 'Sri Lankan', 'united arab emirates': 'Emirati', uae: 'Emirati', afghanistan: 'Afghan',
+  nepal: 'Nepali', nipal: 'Nepali', 'sri lanka': 'Sri Lankan', 'united arab emirates': 'Emirati', uae: 'Emirati', afghanistan: 'Afghan',
   algeria: 'Algerian', 'united states': 'American', usa: 'American', 'united kingdom': 'British', uk: 'British',
   cameroon: 'Cameroonian', china: 'Chinese', ethiopia: 'Ethiopian', ghana: 'Ghanaian', indonesia: 'Indonesian',
   iran: 'Iranian', iraq: 'Iraqi', jordan: 'Jordanian', kenya: 'Kenyan', lebanon: 'Lebanese', morocco: 'Moroccan',
   myanmar: 'Burmese', nigeria: 'Nigerian', palestine: 'Palestinian', 'saudi arabia': 'Saudi', somalia: 'Somali',
   sudan: 'Sudanese', syria: 'Syrian', tunisia: 'Tunisian', turkey: 'Turkish', uganda: 'Ugandan', uzbekistan: 'Uzbek',
   vietnam: 'Vietnamese', yemen: 'Yemeni', filipino: 'Filipino', philippine: 'Filipino',
+}
+
+/**
+ * MOHRE labour lists print the card type ("NEW ELECTRONIC WORK PERMIT",
+ * "RENEW ELECTRONIC WORK PERMIT", "ELECTRONIC WORK PERMIT FOR PART TIME" …);
+ * map it onto WORK_PERMIT_CATEGORIES, or keep the printed text title-cased.
+ */
+export function workPermitCategoryFromCardType(cardType: string | null | undefined): string | null {
+  const raw = cardType?.trim()
+  if (!raw) return null
+  const t = raw.toUpperCase()
+  if (t.includes('PART TIME') || t.includes('PART-TIME')) return 'Part-time Work Permit'
+  if (t.includes('RENEW')) return 'Work Permit Renewal'
+  if (t.includes('TRANSFER')) return 'Work Permit Transfer'
+  if (t.includes('TEMPORARY')) return 'Temporary Work Permit'
+  if (t.includes('MISSION')) return 'One-mission Work Permit'
+  if (t.includes('JUVENILE')) return 'Juvenile Work Permit'
+  if (t.includes('GOLDEN')) return 'Golden Visa Holder Work Permit'
+  if (t.includes('NEW')) return 'New Electronic Work Permit'
+  return raw.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
 /** Best match in NATIONALITIES for a scanned/typed value; the input title-cased if there's no match. */

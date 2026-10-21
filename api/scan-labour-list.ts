@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { getSupabaseAdmin } from './_lib/supabaseAdmin.js'
 import { requireUserWithPermission, AuthError } from './_lib/auth.js'
 import { extractFromImageOrPdf } from './_lib/extractLabourList.js'
+import { matchEmployee } from './_lib/matchEmployee.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -61,41 +62,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const { parsed } = await extractFromImageOrPdf(buffer.toString('base64'), attachment.mime_type, attachment.file_name)
 
-      // Match each extracted person against existing employees by Emirates
-      // ID (exact) first, falling back to an exact name match — anything
-      // else is 'new' or 'uncertain' rather than guessed.
-      const civilIds = parsed.items.map((i) => i.civil_id_number).filter((v): v is string => !!v)
-      const names = parsed.items.map((i) => i.person_name).filter(Boolean)
+      // Match each person to an existing employee: passport / MOHRE person code /
+      // work permit number / Emirates ID first (sure), then a loose name match
+      // (marked uncertain for review). Unmatched people are new.
+      const { data: employees, error: employeesError } = await admin
+        .from('employees')
+        .select('id, full_name, passport_number, labour_person_number, work_permit_number, emirates_id')
+        .range(0, 9999)
+      if (employeesError) throw new Error(`Loading employees failed: ${employeesError.message}`)
 
-      const [byId, byName] = await Promise.all([
-        civilIds.length > 0
-          ? admin.from('employees').select('id, emirates_id, full_name').in('emirates_id', civilIds)
-          : Promise.resolve({ data: [] as { id: string; emirates_id: string | null; full_name: string }[] }),
-        names.length > 0
-          ? admin.from('employees').select('id, emirates_id, full_name').in('full_name', names)
-          : Promise.resolve({ data: [] as { id: string; emirates_id: string | null; full_name: string }[] }),
-      ])
-
-      const rows = parsed.items.map((item) => {
-        const idMatch = item.civil_id_number ? byId.data?.find((e) => e.emirates_id === item.civil_id_number) : undefined
-        const nameMatch = byName.data?.find((e) => e.full_name.toLowerCase() === item.person_name.toLowerCase())
-        const matched = idMatch ?? nameMatch
-        const matchStatus: 'matched' | 'uncertain' | 'new' = matched ? (idMatch ? 'matched' : 'uncertain') : 'new'
-        return {
-          labour_list_import_id: importId,
-          matched_employee_id: matched?.id ?? null,
-          match_status: matchStatus,
-          extracted_data: item as never,
-          confidence_score: item.confidence,
-        }
-      })
+      const claimed = new Set<string>()
+      const rows = parsed.items
+        .filter((item) => item.person_name?.trim())
+        .map((item) => {
+          // One employee can only be matched once per list.
+          const match = matchEmployee(item, (employees ?? []).filter((e) => !claimed.has(e.id)))
+          if (match) claimed.add(match.employee.id)
+          return {
+            labour_list_import_id: importId,
+            matched_employee_id: match?.employee.id ?? null,
+            match_status: match?.status ?? ('new' as const),
+            extracted_data: { ...item, match_reason: match?.reason ?? null } as never,
+            confidence_score: item.confidence,
+          }
+        })
+      if (rows.length === 0) throw new Error('No employees could be read from this file. Check it is a MOHRE List of Employees and try again.')
 
       const { error: insertError } = await admin.from('labour_list_import_items').insert(rows)
       if (insertError) throw new Error(`Saving scanned rows failed: ${insertError.message}`)
 
       await admin.from('labour_list_imports').update({ status: 'completed' }).eq('id', importId)
 
-      res.status(200).json({ itemCount: rows.length })
+      res.status(200).json({ itemCount: rows.length, expectedCount: parsed.total_employees ?? null })
     } catch (processingError) {
       const message = processingError instanceof Error ? processingError.message : 'Unknown processing error'
       console.error('scan-labour-list processing failed', { importId, message })
