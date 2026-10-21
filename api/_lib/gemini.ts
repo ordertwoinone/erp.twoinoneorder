@@ -47,8 +47,10 @@ export async function callGemini<T>({
   schema: JsonSchema
   parts: GeminiPart[]
 }): Promise<{ raw: unknown; parsed: T }> {
-  const apiKey = process.env.GEMINI_API_KEY
-  if (!apiKey) {
+  // A second key from a different Google project keeps scans working if the
+  // main project is suspended or its key revoked.
+  const keys = [process.env.GEMINI_API_KEY, process.env.GEMINI_BACKUP_API_KEY].filter((k): k is string => !!k?.trim())
+  if (keys.length === 0) {
     throw new Error('GEMINI_API_KEY is not configured on the server.')
   }
 
@@ -61,6 +63,49 @@ export async function callGemini<T>({
     },
   })
 
+  let attempt = await generateWithFallbacks(keys[0], body)
+  if (!attempt.response.ok && isAccessDenied(attempt.response.status, attempt.raw) && keys[1]) {
+    console.warn('Gemini: main API key was denied access, retrying with GEMINI_BACKUP_API_KEY')
+    attempt = await generateWithFallbacks(keys[1], body)
+  }
+  const { response, raw, model } = attempt
+
+  if (!response.ok) {
+    const message: string = raw?.error?.message || `Gemini request failed with status ${response.status}`
+    if (isAccessDenied(response.status, raw)) {
+      throw new Error(
+        `Google blocked the Gemini API key (${message}). The scanner can't run until the key is replaced: ` +
+          'create a new key in Google AI Studio (aistudio.google.com/apikey) under a working project, set it as ' +
+          'GEMINI_API_KEY in Vercel → Settings → Environment Variables, then redeploy.',
+      )
+    }
+    if (response.status === 429) {
+      throw new Error(
+        `Gemini usage limit reached for this API key (${message}). Wait a minute and retry; if it keeps happening, check the key's quota/billing in Google AI Studio.`,
+      )
+    }
+    if (isTransient(response.status, raw)) {
+      throw new Error('Google Gemini is busy right now (high demand). Please try the scan again in a minute.')
+    }
+    throw new Error(`Gemini (${model}): ${message}`)
+  }
+
+  const candidate = raw?.candidates?.[0]
+  const text = candidate?.content?.parts?.map((p: { text?: string }) => p.text ?? '').join('')
+  if (!text) {
+    const reason = candidate?.finishReason || raw?.promptFeedback?.blockReason || 'no content returned'
+    throw new Error(`Gemini did not return a result (${reason}).`)
+  }
+
+  try {
+    return { raw, parsed: JSON.parse(text) as T }
+  } catch {
+    throw new Error('Gemini returned output that was not valid JSON.')
+  }
+}
+
+/** One key: the configured model, then a replacement if it was retired, then another Flash model if overloaded. */
+async function generateWithFallbacks(apiKey: string, body: string) {
   let model = process.env.GEMINI_MODEL || DEFAULT_MODEL
   let { response, raw } = await generateWithRetry(apiKey, model, body, RETRY_DELAYS_MS)
 
@@ -89,31 +134,23 @@ export async function callGemini<T>({
     }
   }
 
-  if (!response.ok) {
-    const message: string = raw?.error?.message || `Gemini request failed with status ${response.status}`
-    if (response.status === 429) {
-      throw new Error(
-        `Gemini usage limit reached for this API key (${message}). Wait a minute and retry; if it keeps happening, check the key's quota/billing in Google AI Studio.`,
-      )
-    }
-    if (isTransient(response.status, raw)) {
-      throw new Error('Google Gemini is busy right now (high demand). Please try the scan again in a minute.')
-    }
-    throw new Error(`Gemini (${model}): ${message}`)
-  }
+  return { response, raw, model }
+}
 
-  const candidate = raw?.candidates?.[0]
-  const text = candidate?.content?.parts?.map((p: { text?: string }) => p.text ?? '').join('')
-  if (!text) {
-    const reason = candidate?.finishReason || raw?.promptFeedback?.blockReason || 'no content returned'
-    throw new Error(`Gemini did not return a result (${reason}).`)
-  }
-
-  try {
-    return { raw, parsed: JSON.parse(text) as T }
-  } catch {
-    throw new Error('Gemini returned output that was not valid JSON.')
-  }
+/**
+ * The key or its Google Cloud project is blocked: suspended project ("Your
+ * project has been denied access"), revoked / invalid key, or the API not
+ * enabled. Retrying the same key never helps.
+ */
+function isAccessDenied(status: number, raw: any): boolean {
+  const message: string = raw?.error?.message ?? ''
+  const reason: string = raw?.error?.status ?? ''
+  return (
+    status === 401 ||
+    status === 403 ||
+    reason === 'PERMISSION_DENIED' ||
+    /denied access|api key not valid|api key expired|suspended|has been disabled/i.test(message)
+  )
 }
 
 async function generate(apiKey: string, model: string, body: string) {
@@ -149,6 +186,7 @@ function isTransient(status: number, raw: any): boolean {
 }
 
 function isModelUnavailable(status: number, raw: any): boolean {
+  if (isAccessDenied(status, raw)) return false
   const message: string = raw?.error?.message ?? ''
   return status === 404 || /no longer available|not found|is not supported|deprecated/i.test(message)
 }
