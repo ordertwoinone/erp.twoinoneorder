@@ -954,6 +954,24 @@ export interface Database {
           typing_application_ref: string | null
           typing_process: string | null
           typing_company_category_id: string | null
+          residency_type: string | null
+          residency_file_number: string | null
+          residency_status: string | null
+          unified_number: string | null
+          gender: string | null
+          marital_status: string | null
+          place_of_birth: string | null
+          birth_country: string | null
+          religion: string | null
+          mother_name: string | null
+          passport_type: string | null
+          passport_issue_place: string | null
+          alternate_phone: string | null
+          uae_address: string | null
+          home_country_address: string | null
+          home_country_mobile: string | null
+          residency_issue_date: string | null
+          date_of_birth: string | null
           labour_fine_status: string | null
           labour_fine_checked_date: string | null
           labour_fine_reference: string | null

@@ -59,6 +59,13 @@ export const INITIAL_VISA_TYPES: Option[] = [
   { value: 'other_sponsor', label: 'Other sponsor' },
 ]
 
+export const GENDERS: Option[] = [
+  { value: 'male', label: 'Male' },
+  { value: 'female', label: 'Female' },
+]
+
+export const MARITAL_STATUSES: Option[] = ['Single', 'Married', 'Divorced', 'Widowed'].map((label) => ({ value: label, label }))
+
 export const PASSPORT_STATUSES: Option[] = [
   { value: 'with_employee', label: 'With employee' },
   { value: 'with_company', label: 'With company (PRO / HR)' },

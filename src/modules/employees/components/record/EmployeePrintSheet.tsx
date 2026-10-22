@@ -7,6 +7,7 @@ import {
   DECISIONS,
   DOCUMENT_TYPES,
   FINE_STATUSES,
+  GENDERS,
   INITIAL_VISA_TYPES,
   INSURANCE_STATUSES,
   ISSUE_STATUSES,
@@ -197,6 +198,31 @@ export function EmployeePrintSheet({
         />
       </Section>
 
+      <Section title="Personal & residency">
+        <Fields
+          cols={4}
+          rows={[
+            ['Residency type', text(v.residency_type)],
+            ['Residency file no.', text(v.residency_file_number)],
+            ['Unified number (UID)', text(v.unified_number)],
+            ['Residency status', text(v.residency_status)],
+            ['Residency issue date', date(v.residency_issue_date)],
+            ['Residency expiry', v.visa_expiry ? `${date(v.visa_expiry)} (${countdown(v.visa_expiry).label})` : '—'],
+            ['Date of birth', date(v.date_of_birth)],
+            ['Gender', label(GENDERS, v.gender)],
+            ['Marital status', text(v.marital_status)],
+            ['Place of birth', [v.place_of_birth, v.birth_country].filter(Boolean).join(', ') || '—'],
+            ['Religion', text(v.religion)],
+            ['Mother’s name', text(v.mother_name)],
+            ['Passport type / place', [v.passport_type, v.passport_issue_place].filter(Boolean).join(' · ') || '—'],
+            ['UAE mobile / phone', [v.phone, v.alternate_phone].filter(Boolean).join(' · ') || '—'],
+            ['Email', text(v.email)],
+            ['Address in UAE', text(v.uae_address)],
+            ['Home country address', text(v.home_country_address)],
+            ['Home country mobile', text(v.home_country_mobile)],
+          ]}
+        />
+      </Section>
       <div className="grid grid-cols-2 gap-4">
         <Section title="Passport">
           <Fields

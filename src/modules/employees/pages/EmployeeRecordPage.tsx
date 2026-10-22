@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ArrowLeft, Eye, Loader2, Printer, Save, Trash2 } from 'lucide-react'
+import { ArrowLeft, Eye, Loader2, Printer, Save, ScanLine, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { ConfirmActionDialog } from '@/components/shared/ConfirmActionDialog'
@@ -11,7 +11,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useRestaurantsQuery } from '@/hooks/useRestaurantsQuery'
 import { useRestaurantScope } from '@/hooks/useRestaurantScope'
 import { employeeRecordSchema, type EmployeeDocumentItem, type EmployeeRecordInput } from '@/schemas/employee'
-import { DOCUMENT_TYPES, VISA_STEPS, normalizeNationality, optionLabel } from '../employeeOptions'
+import { DOCUMENT_TYPES, VISA_STEPS, optionLabel } from '../employeeOptions'
 import {
   useDeleteEmployee,
   useEmployeeAssignments,
@@ -21,10 +21,11 @@ import {
   useScanEmployeeDocument,
   validateDocumentFile,
   type EmployeeRecordData,
-  type ScannedEmployeeFields,
 } from '../hooks/useEmployeeRecord'
 import { EmployeeHeaderSection, EmployeeKpiStrip, RecordModeBar } from '../components/record/EmployeeHeaderSection'
 import { EmployeePrintSheet } from '../components/record/EmployeePrintSheet'
+import { PersonalResidencySection } from '../components/record/PersonalResidencySection'
+import { ScanReviewDialog, type ScanReview } from '../components/record/ScanReviewDialog'
 import { RecordLockProvider } from '../components/record/RecordLock'
 import { useRecordLock } from '../components/record/recordLockContext'
 import { TypingCentreSection } from '../components/record/TypingCentreSection'
@@ -157,6 +158,27 @@ function toFormValues(id: string, restaurantId: string, record?: EmployeeRecordD
     typing_application_ref: s(e?.typing_application_ref),
     typing_process: s(e?.typing_process) || 'new_employment_visa',
     typing_company_category_id: e?.typing_company_category_id ?? null,
+    visa_expiry: s(e?.visa_expiry),
+    residency_issue_date: s(e?.residency_issue_date),
+    date_of_birth: s(e?.date_of_birth),
+    residency_type: s(e?.residency_type),
+    residency_file_number: s(e?.residency_file_number),
+    residency_status: s(e?.residency_status),
+    unified_number: s(e?.unified_number),
+    gender: s(e?.gender),
+    marital_status: s(e?.marital_status),
+    place_of_birth: s(e?.place_of_birth),
+    birth_country: s(e?.birth_country),
+    religion: s(e?.religion),
+    mother_name: s(e?.mother_name),
+    passport_type: s(e?.passport_type),
+    passport_issue_place: s(e?.passport_issue_place),
+    phone: s(e?.phone),
+    alternate_phone: s(e?.alternate_phone),
+    email: s(e?.email),
+    uae_address: s(e?.uae_address),
+    home_country_address: s(e?.home_country_address),
+    home_country_mobile: s(e?.home_country_mobile),
     labour_fine_status: s(e?.labour_fine_status),
     labour_fine_checked_date: s(e?.labour_fine_checked_date),
     labour_fine_reference: s(e?.labour_fine_reference),
@@ -228,7 +250,6 @@ function toDocumentItems(record?: EmployeeRecordData): EmployeeDocumentItem[] {
   }))
 }
 
-const isIsoDate = (v: string | null): v is string => !!v && /^\d{4}-\d{2}-\d{2}$/.test(v)
 
 export default function EmployeeRecordPage() {
   const { id: routeId } = useParams<{ id: string }>()
@@ -253,6 +274,8 @@ export default function EmployeeRecordPage() {
   })
   const [documents, setDocuments] = useState<EmployeeDocumentItem[]>([])
   const [docFilter, setDocFilter] = useState('all')
+  const [scanReviews, setScanReviews] = useState<ScanReview[]>([])
+  const scanInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!record) return
@@ -280,37 +303,6 @@ export default function EmployeeRecordPage() {
     }
   }
 
-  function applyScannedFields(fields: ScannedEmployeeFields): string[] {
-    const filled: string[] = []
-    const set = (name: keyof EmployeeRecordInput, value: unknown, label: string, onlyIfEmpty = false) => {
-      if (value === null || value === undefined || value === '') return
-      if (onlyIfEmpty && form.getValues(name)) return
-      form.setValue(name, value as never, { shouldDirty: true })
-      filled.push(label)
-    }
-    const date = (name: keyof EmployeeRecordInput, value: string | null, label: string) => isIsoDate(value) && set(name, value, label)
-
-    set('full_name', fields.full_name, 'name', true)
-    set('job_title', fields.job_title, 'position', true)
-    set('sponsor_name', fields.sponsor_name, 'sponsor', true)
-    set('passport_number', fields.passport_number, 'passport number')
-    date('passport_issue_date', fields.passport_issue_date, 'passport issue date')
-    date('passport_expiry_date', fields.passport_expiry_date, 'passport expiry')
-    set('emirates_id', fields.emirates_id_number, 'Emirates ID')
-    date('emirates_id_expiry', fields.emirates_id_expiry, 'Emirates ID expiry')
-    set('work_permit_number', fields.work_permit_number, 'work permit number')
-    set('labour_person_number', fields.labour_person_number, 'labour list no.')
-    date('permit_issue_date', fields.permit_issue_date, 'permit issue date')
-    date('labour_permit_expiry', fields.labour_permit_expiry, 'labour expiry')
-    if (isIsoDate(fields.labour_permit_expiry) && !form.getValues('work_permit_expiry')) {
-      form.setValue('work_permit_expiry', fields.labour_permit_expiry, { shouldDirty: true })
-    }
-    date('medical_expiry_date', fields.medical_expiry_date, 'medical expiry')
-    set('work_permit_salary', fields.work_permit_salary, 'work permit salary')
-    set('nationality', normalizeNationality(fields.nationality), 'nationality')
-    return filled
-  }
-
   async function scanFiles(files: File[]) {
     const restaurantId = form.getValues('current_restaurant_id')
     if (!restaurantId) {
@@ -325,15 +317,15 @@ export default function EmployeeRecordPage() {
       }
       try {
         const { fields, attachmentId, storagePath } = await scanDocument.mutateAsync({ file, restaurantId, employeeId })
-        const documentType = DOCUMENT_TYPES.some((t) => t.value === fields.document_type) ? fields.document_type : 'other'
+        // A residency record is filed with the visa documents.
+        const scannedType = fields.document_type === 'residency' ? 'visa' : fields.document_type
+        const documentType = DOCUMENT_TYPES.some((t) => t.value === scannedType) ? scannedType : 'other'
         setDocuments((prev) => [
           ...prev,
           { key: crypto.randomUUID(), attachment_id: attachmentId, storage_path: storagePath, document_type: documentType, file_name: file.name, file_size_bytes: file.size },
         ])
-        const filled = applyScannedFields(fields)
-        toast.success(`${file.name}: read as ${optionLabel(DOCUMENT_TYPES, documentType)}`, {
-          description: filled.length ? `Filled ${filled.join(', ')}. Check the values before saving.` : 'No new fields found on this document.',
-        })
+        // The review dialog shows what changes; nothing is written to the form until Apply.
+        setScanReviews((prev) => [...prev, { key: crypto.randomUUID(), fileName: file.name, fields }])
       } catch (err) {
         toast.error(`Couldn't scan ${file.name}`, { description: (err as Error).message })
       }
@@ -361,6 +353,22 @@ export default function EmployeeRecordPage() {
           {isNew && <span className="ml-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">New employee</span>}
         </Link>
         <div className="flex items-center gap-1">
+          <Button type="button" variant="outline" size="sm" onClick={() => scanInputRef.current?.click()} disabled={scanDocument.isPending}>
+            {scanDocument.isPending ? <Loader2 className="animate-spin" /> : <ScanLine />}
+            {scanDocument.isPending ? 'Scanning…' : 'Scan document'}
+          </Button>
+          <input
+            ref={scanInputRef}
+            type="file"
+            multiple
+            accept=".pdf,.jpg,.jpeg,.png,.webp"
+            className="hidden"
+            onChange={(e) => {
+              const files = Array.from(e.target.files ?? [])
+              e.target.value = ''
+              if (files.length) void scanFiles(files)
+            }}
+          />
           <Button type="button" variant="outline" size="sm" onClick={() => window.print()}>
             <Printer /> Print
           </Button>
@@ -384,11 +392,13 @@ export default function EmployeeRecordPage() {
         </div>
       </div>
       <EmployeePrintSheet form={form} restaurants={restaurants} photoPath={record?.photo?.storage_path} documents={documents} />
+      <ScanReviewDialog form={form} review={scanReviews[0]} remaining={Math.max(scanReviews.length - 1, 0)} onDone={() => setScanReviews((prev) => prev.slice(1))} />
 
       <RecordModeBar isNew={isNew} />
       <EmployeeHeaderSection form={form} restaurants={restaurants} photoPath={record?.photo?.storage_path} />
       <EmployeeKpiStrip form={form} />
       <EntrySection form={form} />
+      <PersonalResidencySection form={form} onScan={() => scanInputRef.current?.click()} />
       <div className="grid gap-5 xl:grid-cols-2">
         <VisaSponsorshipSection form={form} restaurants={restaurants} />
         <EmployeeDocumentsSection

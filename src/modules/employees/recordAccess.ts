@@ -21,6 +21,7 @@ const MONEY = ['payroll.view', 'employees.manage']
 
 export const SECTION_ACCESS: SectionAccess[] = [
   { key: 'profile', title: 'Profile & basic information', viewers: 'Owner + HR + Branch manager', editors: 'Owner, HR', viewAny: STAFF, editAny: HR },
+  { key: 'personal', title: 'Personal & residency details', viewers: 'Owner + HR', editors: 'Owner, HR', viewAny: STAFF, editAny: HR },
   { key: 'visa', title: 'Visa & sponsorship', viewers: 'Owner + HR', editors: 'Owner, HR', viewAny: STAFF, editAny: HR },
   { key: 'documents', title: 'Employee documents', viewers: 'Owner + HR', editors: 'Owner, HR', viewAny: STAFF, editAny: HR },
   { key: 'typing', title: 'Typing centre payments', viewers: 'Owner + HR + Accountant', editors: 'Owner, HR', viewAny: MONEY, editAny: HR },

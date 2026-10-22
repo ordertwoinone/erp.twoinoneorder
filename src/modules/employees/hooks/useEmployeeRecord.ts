@@ -357,6 +357,27 @@ export interface ScannedEmployeeFields {
   sponsor_name: string | null
   job_title: string | null
   work_permit_salary: number | null
+  passport_type: string | null
+  passport_issue_place: string | null
+  unified_number: string | null
+  residency_type: string | null
+  residency_file_number: string | null
+  residency_issue_date: string | null
+  residency_expiry_date: string | null
+  residency_status: string | null
+  date_of_birth: string | null
+  gender: string | null
+  marital_status: string | null
+  place_of_birth: string | null
+  birth_country: string | null
+  religion: string | null
+  mother_name: string | null
+  uae_address: string | null
+  uae_mobile: string | null
+  uae_phone: string | null
+  home_country_address: string | null
+  home_country_mobile: string | null
+  email: string | null
   confidence: number
 }
 
