@@ -48,8 +48,14 @@ export function useEmployeeRecordQuery(id: string | undefined) {
       }
       const employee = employeeRes.data!
 
-      // Photo and labour-fine proof hang off employees by attachment id.
-      const fileIds = [employee.photo_attachment_id, employee.labour_fine_attachment_id].filter((v): v is string => !!v)
+      // Photo, labour-fine proof, contract and signatures hang off employees by attachment id.
+      const fileIds = [
+        employee.photo_attachment_id,
+        employee.labour_fine_attachment_id,
+        employee.contract_attachment_id,
+        employee.employee_signature_attachment_id,
+        employee.manager_signature_attachment_id,
+      ].filter((v): v is string => !!v)
       const files = fileIds.length
         ? ((await supabase.from('attachments').select('id, file_name, storage_path').in('id', fileIds)).data ?? [])
         : []
@@ -67,6 +73,9 @@ export function useEmployeeRecordQuery(id: string | undefined) {
         monthlyRecords: monthlyRes.data!,
         photo: file(employee.photo_attachment_id),
         labourFineFile: file(employee.labour_fine_attachment_id),
+        contractFile: file(employee.contract_attachment_id),
+        employeeSignatureFile: file(employee.employee_signature_attachment_id),
+        managerSignatureFile: file(employee.manager_signature_attachment_id),
       }
     },
   })
@@ -179,6 +188,9 @@ export function useSaveEmployeeRecord() {
       }
       const photoAttachmentId = await upload(values.photo_pending_file, values.photo_attachment_id)
       const labourFineAttachmentId = await upload(values.labour_fine_pending_file, values.labour_fine_attachment_id)
+      const contractAttachmentId = await upload(values.contract_pending_file, values.contract_attachment_id)
+      const employeeSignatureId = await upload(values.employee_signature_pending_file, values.employee_signature_attachment_id)
+      const managerSignatureId = await upload(values.manager_signature_pending_file, values.manager_signature_attachment_id)
 
       const {
         vacations: _v,
@@ -192,12 +204,20 @@ export function useSaveEmployeeRecord() {
         labour_fine_pending_file: _lf,
         labour_fine_attachment_name: _ln,
         labour_fine_attachment_path: _lp,
+        contract_pending_file: _cf,
+        employee_signature_pending_file: _es,
+        manager_signature_pending_file: _ms,
         ...fields
       } = values
       const payload = {
         ...fields,
         photo_attachment_id: photoAttachmentId,
         labour_fine_attachment_id: labourFineAttachmentId,
+        contract_attachment_id: contractAttachmentId,
+        employee_signature_attachment_id: employeeSignatureId,
+        manager_signature_attachment_id: managerSignatureId,
+        contract_min_service_months: fields.contract_min_service_months === '' ? null : fields.contract_min_service_months,
+        company_visa_cost: fields.company_visa_cost === '' ? null : fields.company_visa_cost,
         visa_steps: visaSteps,
         typing_payments: typingPayments,
         issues,

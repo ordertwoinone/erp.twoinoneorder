@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -10,7 +11,7 @@ import { FullScreenSpinner } from '@/components/shared/FullScreenSpinner'
 import { useAuth } from '@/hooks/useAuth'
 import { useRestaurantsQuery } from '@/hooks/useRestaurantsQuery'
 import { useRestaurantScope } from '@/hooks/useRestaurantScope'
-import { employeeRecordSchema, type EmployeeDocumentItem, type EmployeeRecordInput } from '@/schemas/employee'
+import { DEFAULT_CONTRACT_BENEFITS, employeeRecordSchema, type ContractBenefits, type EmployeeDocumentItem, type EmployeeRecordInput } from '@/schemas/employee'
 import { DOCUMENT_TYPES, VISA_STEPS, optionLabel } from '../employeeOptions'
 import {
   useDeleteEmployee,
@@ -25,6 +26,10 @@ import {
 import { EmployeeHeaderSection, EmployeeKpiStrip, RecordModeBar } from '../components/record/EmployeeHeaderSection'
 import { EmployeePrintSheet } from '../components/record/EmployeePrintSheet'
 import { PersonalResidencySection } from '../components/record/PersonalResidencySection'
+import { ContractSection } from '../components/record/ContractSection'
+import { useFilePreview } from '../hooks/useFilePreview'
+import type { ContractLanguage } from '../contractUtils'
+import { ContractPrintSheet } from '../components/record/ContractPrintSheet'
 import { ScanReviewDialog, type ScanReview } from '../components/record/ScanReviewDialog'
 import { RecordLockProvider } from '../components/record/RecordLock'
 import { useRecordLock } from '../components/record/recordLockContext'
@@ -158,6 +163,19 @@ function toFormValues(id: string, restaurantId: string, record?: EmployeeRecordD
     typing_application_ref: s(e?.typing_application_ref),
     typing_process: s(e?.typing_process) || 'new_employment_visa',
     typing_company_category_id: e?.typing_company_category_id ?? null,
+    contract_type: s(e?.contract_type),
+    contract_start_date: s(e?.contract_start_date),
+    contract_end_date: s(e?.contract_end_date),
+    contract_min_service_months: n(e?.contract_min_service_months),
+    contract_status: s(e?.contract_status),
+    company_visa_cost: n(e?.company_visa_cost),
+    contract_benefits: { ...DEFAULT_CONTRACT_BENEFITS, ...((e?.contract_benefits as Partial<ContractBenefits> | null) ?? {}) },
+    contract_attachment_id: e?.contract_attachment_id ?? null,
+    employee_signature_attachment_id: e?.employee_signature_attachment_id ?? null,
+    employee_signed_at: s(e?.employee_signed_at),
+    manager_signature_attachment_id: e?.manager_signature_attachment_id ?? null,
+    manager_signed_at: s(e?.manager_signed_at),
+    manager_signed_by: s(e?.manager_signed_by),
     visa_expiry: s(e?.visa_expiry),
     residency_issue_date: s(e?.residency_issue_date),
     date_of_birth: s(e?.date_of_birth),
@@ -275,6 +293,17 @@ export default function EmployeeRecordPage() {
   const [documents, setDocuments] = useState<EmployeeDocumentItem[]>([])
   const [docFilter, setDocFilter] = useState('all')
   const [scanReviews, setScanReviews] = useState<ScanReview[]>([])
+  // Which printout the print stylesheet shows: the full record (default) or the contract.
+  const [contractPrint, setContractPrint] = useState<ContractLanguage | null>(null)
+  const photoPending = form.watch('photo_pending_file')
+  const photoId = form.watch('photo_attachment_id')
+  const employeeSigPending = form.watch('employee_signature_pending_file')
+  const employeeSigId = form.watch('employee_signature_attachment_id')
+  const managerSigPending = form.watch('manager_signature_pending_file')
+  const managerSigId = form.watch('manager_signature_attachment_id')
+  const photoUrl = useFilePreview(photoPending, photoId ? record?.photo?.storage_path : null)
+  const employeeSignatureUrl = useFilePreview(employeeSigPending, employeeSigId ? record?.employeeSignatureFile?.storage_path : null)
+  const managerSignatureUrl = useFilePreview(managerSigPending, managerSigId ? record?.managerSignatureFile?.storage_path : null)
   const scanInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -301,6 +330,22 @@ export default function EmployeeRecordPage() {
       setDocuments((prev) => [...prev, ...accepted])
       toast.success(`${accepted.length} ${optionLabel(DOCUMENT_TYPES, documentType).toLowerCase()} file${accepted.length === 1 ? '' : 's'} added — saved with the record`)
     }
+  }
+
+  /** Shows the contract printout, waits for its photo / signatures to load, prints, then goes back to the record printout. */
+  async function printContract(language: ContractLanguage) {
+    flushSync(() => setContractPrint(language))
+    const images = Array.from(document.querySelectorAll<HTMLImageElement>('.print-sheet img'))
+    const loaded = (img: HTMLImageElement) =>
+      img.complete
+        ? Promise.resolve()
+        : new Promise<void>((done) => {
+            img.addEventListener('load', () => done(), { once: true })
+            img.addEventListener('error', () => done(), { once: true })
+          })
+    await Promise.race([Promise.all(images.map(loaded)), new Promise((done) => setTimeout(done, 4000))])
+    window.addEventListener('afterprint', () => setContractPrint(null), { once: true })
+    window.print()
   }
 
   async function scanFiles(files: File[]) {
@@ -391,7 +436,18 @@ export default function EmployeeRecordPage() {
           )}
         </div>
       </div>
-      <EmployeePrintSheet form={form} restaurants={restaurants} photoPath={record?.photo?.storage_path} documents={documents} />
+      {contractPrint ? (
+        <ContractPrintSheet
+          form={form}
+          employerName={restaurants.find((r) => r.id === form.getValues('current_restaurant_id'))?.name ?? ''}
+          language={contractPrint}
+          photoUrl={photoUrl}
+          employeeSignatureUrl={employeeSignatureUrl}
+          managerSignatureUrl={managerSignatureUrl}
+        />
+      ) : (
+        <EmployeePrintSheet form={form} restaurants={restaurants} photoPath={record?.photo?.storage_path} documents={documents} />
+      )}
       <ScanReviewDialog form={form} review={scanReviews[0]} remaining={Math.max(scanReviews.length - 1, 0)} onDone={() => setScanReviews((prev) => prev.slice(1))} />
 
       <RecordModeBar isNew={isNew} />
@@ -399,6 +455,14 @@ export default function EmployeeRecordPage() {
       <EmployeeKpiStrip form={form} />
       <EntrySection form={form} />
       <PersonalResidencySection form={form} onScan={() => scanInputRef.current?.click()} />
+      <ContractSection
+        form={form}
+        photoPath={record?.photo?.storage_path}
+        contractFile={record?.contractFile ?? null}
+        employeeSignaturePath={record?.employeeSignatureFile?.storage_path}
+        managerSignaturePath={record?.managerSignatureFile?.storage_path}
+        onPrint={(language) => void printContract(language)}
+      />
       <div className="grid gap-5 xl:grid-cols-2">
         <VisaSponsorshipSection form={form} restaurants={restaurants} />
         <EmployeeDocumentsSection

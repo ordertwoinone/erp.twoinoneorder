@@ -112,6 +112,32 @@ export const monthlyRecordRowSchema = z.object({
 })
 export type MonthlyRecordRow = z.infer<typeof monthlyRecordRowSchema>
 
+/** What the company provides under the employment contract. */
+export const contractBenefitsSchema = z.object({
+  salary: z.boolean(),
+  food: z.boolean(),
+  accommodation: z.boolean(),
+  transport: z.boolean(),
+  visa_cost: z.boolean(),
+  min_service_mandatory: z.boolean(),
+  medical_insurance: z.boolean(),
+  medical_insurance_term: optionalText,
+  other: optionalText,
+})
+export type ContractBenefits = z.infer<typeof contractBenefitsSchema>
+
+export const DEFAULT_CONTRACT_BENEFITS: ContractBenefits = {
+  salary: true,
+  food: false,
+  accommodation: false,
+  transport: false,
+  visa_cost: false,
+  min_service_mandatory: false,
+  medical_insurance: false,
+  medical_insurance_term: '',
+  other: '',
+}
+
 export const employeeRecordSchema = z.object({
   id: z.string().uuid(),
   full_name: z.string().trim().min(1, 'Employee name is required'),
@@ -196,6 +222,24 @@ export const employeeRecordSchema = z.object({
   typing_process: optionalText,
   /** Company category whose template filled the step amounts. */
   typing_company_category_id: z.string().nullable().optional(),
+
+  // Employment contract & company benefits.
+  contract_type: optionalText,
+  contract_start_date: optionalDate,
+  contract_end_date: optionalDate,
+  contract_min_service_months: z.union([z.literal(''), z.coerce.number().int().min(0).max(120)]).optional(),
+  contract_status: optionalText,
+  company_visa_cost: optionalAmount,
+  contract_benefits: contractBenefitsSchema,
+  contract_attachment_id: z.string().optional().nullable(),
+  contract_pending_file: z.any().optional(),
+  employee_signature_attachment_id: z.string().optional().nullable(),
+  employee_signature_pending_file: z.any().optional(),
+  employee_signed_at: optionalDate,
+  manager_signature_attachment_id: z.string().optional().nullable(),
+  manager_signature_pending_file: z.any().optional(),
+  manager_signed_at: optionalDate,
+  manager_signed_by: optionalText,
 
   // Personal & residency details (residency record scan or typed).
   visa_expiry: optionalDate,

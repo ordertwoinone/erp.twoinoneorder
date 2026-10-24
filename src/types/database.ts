@@ -954,6 +954,19 @@ export interface Database {
           typing_application_ref: string | null
           typing_process: string | null
           typing_company_category_id: string | null
+          contract_type: string | null
+          contract_start_date: string | null
+          contract_end_date: string | null
+          contract_min_service_months: number | null
+          contract_status: string | null
+          company_visa_cost: number | null
+          contract_benefits: Json
+          contract_attachment_id: string | null
+          employee_signature_attachment_id: string | null
+          employee_signed_at: string | null
+          manager_signature_attachment_id: string | null
+          manager_signed_at: string | null
+          manager_signed_by: string | null
           residency_type: string | null
           residency_file_number: string | null
           residency_status: string | null
