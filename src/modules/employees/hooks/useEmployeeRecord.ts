@@ -218,6 +218,7 @@ export function useSaveEmployeeRecord() {
         manager_signature_attachment_id: managerSignatureId,
         contract_min_service_months: fields.contract_min_service_months === '' ? null : fields.contract_min_service_months,
         company_visa_cost: fields.company_visa_cost === '' ? null : fields.company_visa_cost,
+        contract_salary: Object.fromEntries(Object.entries(fields.contract_salary).map(([k, v]) => [k, v === '' ? null : v])),
         visa_steps: visaSteps,
         typing_payments: typingPayments,
         issues,

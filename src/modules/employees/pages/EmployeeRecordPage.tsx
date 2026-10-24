@@ -11,7 +11,17 @@ import { FullScreenSpinner } from '@/components/shared/FullScreenSpinner'
 import { useAuth } from '@/hooks/useAuth'
 import { useRestaurantsQuery } from '@/hooks/useRestaurantsQuery'
 import { useRestaurantScope } from '@/hooks/useRestaurantScope'
-import { DEFAULT_CONTRACT_BENEFITS, employeeRecordSchema, type ContractBenefits, type EmployeeDocumentItem, type EmployeeRecordInput } from '@/schemas/employee'
+import {
+  DEFAULT_CONTRACT_BENEFITS,
+  DEFAULT_CONTRACT_EMPLOYER,
+  DEFAULT_CONTRACT_SALARY,
+  employeeRecordSchema,
+  type ContractBenefits,
+  type ContractEmployer,
+  type ContractSalary,
+  type EmployeeDocumentItem,
+  type EmployeeRecordInput,
+} from '@/schemas/employee'
 import { DOCUMENT_TYPES, VISA_STEPS, optionLabel } from '../employeeOptions'
 import {
   useDeleteEmployee,
@@ -170,6 +180,14 @@ function toFormValues(id: string, restaurantId: string, record?: EmployeeRecordD
     contract_status: s(e?.contract_status),
     company_visa_cost: n(e?.company_visa_cost),
     contract_benefits: { ...DEFAULT_CONTRACT_BENEFITS, ...((e?.contract_benefits as Partial<ContractBenefits> | null) ?? {}) },
+    contract_employer: { ...DEFAULT_CONTRACT_EMPLOYER, ...((e?.contract_employer as Partial<ContractEmployer> | null) ?? {}) },
+    // Blank amounts are saved as null; drop them so the '' defaults stay.
+    contract_salary: {
+      ...DEFAULT_CONTRACT_SALARY,
+      ...Object.fromEntries(Object.entries((e?.contract_salary as Partial<ContractSalary> | null) ?? {}).filter(([, v]) => v != null)),
+    },
+    contract_transaction_number: s(e?.contract_transaction_number),
+    contract_notes: s(e?.contract_notes),
     contract_attachment_id: e?.contract_attachment_id ?? null,
     employee_signature_attachment_id: e?.employee_signature_attachment_id ?? null,
     employee_signed_at: s(e?.employee_signed_at),
@@ -457,6 +475,7 @@ export default function EmployeeRecordPage() {
       <PersonalResidencySection form={form} onScan={() => scanInputRef.current?.click()} />
       <ContractSection
         form={form}
+        branchName={restaurants.find((r) => r.id === form.watch('current_restaurant_id'))?.name ?? ''}
         photoPath={record?.photo?.storage_path}
         contractFile={record?.contractFile ?? null}
         employeeSignaturePath={record?.employeeSignatureFile?.storage_path}

@@ -1,4 +1,5 @@
 import { addDays, addMonths, differenceInCalendarDays, differenceInMonths, format, intervalToDuration, isAfter, isBefore, isValid, parseISO } from 'date-fns'
+import type { ContractSalary } from '@/schemas/employee'
 import type { Option } from './employeeOptions'
 
 export type ContractLanguage = 'en' | 'ar' | 'both'
@@ -33,6 +34,46 @@ export const MIN_SERVICE_OPTIONS: Option[] = [
   { value: '24', label: '2 years (24 months)' },
   { value: '36', label: '3 years (36 months)' },
 ]
+
+/** Total monthly salary: basic + every allowance paid as an amount (in-kind allowances add nothing). */
+export function salaryTotal(s: ContractSalary | undefined) {
+  if (!s) return 0
+  const n = (v: number | '' | undefined) => Number(v) || 0
+  return n(s.basic) + (s.housing_by_employer ? 0 : n(s.housing)) + (s.transport_by_employer ? 0 : n(s.transport)) + (s.food_by_employer ? 0 : n(s.food)) + n(s.other)
+}
+
+const ONES = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen']
+const TENS = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety']
+
+function below1000(n: number): string {
+  const parts: string[] = []
+  if (n >= 100) parts.push(`${ONES[Math.floor(n / 100)]} hundred`)
+  const r = n % 100
+  if (r) parts.push(r < 20 ? ONES[r] : TENS[Math.floor(r / 10)] + (r % 10 ? `-${ONES[r % 10]}` : ''))
+  return parts.join(' ')
+}
+
+/** 5000 → "Five thousand"; 1250.5 → "One thousand two hundred fifty and 50 fils". */
+export function amountInWords(amount: number) {
+  const whole = Math.floor(Math.abs(amount))
+  const fils = Math.round((Math.abs(amount) - whole) * 100)
+  let words = ''
+  if (whole === 0) words = 'zero'
+  else {
+    const parts: string[] = []
+    let rest = whole
+    for (const [size, name] of [[1_000_000_000, 'billion'], [1_000_000, 'million'], [1000, 'thousand']] as const) {
+      if (rest >= size) {
+        parts.push(`${below1000(Math.floor(rest / size))} ${name}`)
+        rest %= size
+      }
+    }
+    if (rest) parts.push(below1000(rest))
+    words = parts.join(' ')
+  }
+  if (fils) words += ` and ${fils} fils`
+  return words.charAt(0).toUpperCase() + words.slice(1)
+}
 
 const parse = (v: string | null | undefined) => {
   const d = v ? parseISO(v) : null

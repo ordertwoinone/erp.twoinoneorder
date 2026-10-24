@@ -138,6 +138,55 @@ export const DEFAULT_CONTRACT_BENEFITS: ContractBenefits = {
   other: '',
 }
 
+/** First party (employer) as printed on the contract. */
+export const contractEmployerSchema = z.object({
+  name: optionalText,
+  licence_number: optionalText,
+  establishment_number: optionalText,
+  representative: optionalText,
+  representative_title: optionalText,
+  address: optionalText,
+  phone: optionalText,
+})
+export type ContractEmployer = z.infer<typeof contractEmployerSchema>
+
+export const DEFAULT_CONTRACT_EMPLOYER: ContractEmployer = {
+  name: '',
+  licence_number: '',
+  establishment_number: '',
+  representative: '',
+  representative_title: '',
+  address: '',
+  phone: '',
+}
+
+/**
+ * Monthly salary breakdown. Each allowance is an amount, or provided in kind by
+ * the first party (`*_by_employer`), e.g. "Housing Allowance: FIRST PARTY".
+ */
+export const contractSalarySchema = z.object({
+  basic: optionalAmount,
+  housing: optionalAmount,
+  housing_by_employer: z.boolean(),
+  transport: optionalAmount,
+  transport_by_employer: z.boolean(),
+  food: optionalAmount,
+  food_by_employer: z.boolean(),
+  other: optionalAmount,
+})
+export type ContractSalary = z.infer<typeof contractSalarySchema>
+
+export const DEFAULT_CONTRACT_SALARY: ContractSalary = {
+  basic: '',
+  housing: '',
+  housing_by_employer: false,
+  transport: '',
+  transport_by_employer: false,
+  food: '',
+  food_by_employer: false,
+  other: '',
+}
+
 export const employeeRecordSchema = z.object({
   id: z.string().uuid(),
   full_name: z.string().trim().min(1, 'Employee name is required'),
@@ -231,6 +280,10 @@ export const employeeRecordSchema = z.object({
   contract_status: optionalText,
   company_visa_cost: optionalAmount,
   contract_benefits: contractBenefitsSchema,
+  contract_employer: contractEmployerSchema,
+  contract_salary: contractSalarySchema,
+  contract_transaction_number: optionalText,
+  contract_notes: optionalText,
   contract_attachment_id: z.string().optional().nullable(),
   contract_pending_file: z.any().optional(),
   employee_signature_attachment_id: z.string().optional().nullable(),

@@ -961,6 +961,10 @@ export interface Database {
           contract_status: string | null
           company_visa_cost: number | null
           contract_benefits: Json
+          contract_employer: Json
+          contract_salary: Json
+          contract_transaction_number: string | null
+          contract_notes: string | null
           contract_attachment_id: string | null
           employee_signature_attachment_id: string | null
           employee_signed_at: string | null

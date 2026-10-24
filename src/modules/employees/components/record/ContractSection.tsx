@@ -4,15 +4,18 @@ import { Controller } from 'react-hook-form'
 import { format, parseISO } from 'date-fns'
 import {
   AlertCircle,
+  Building2,
   Bus,
   CalendarCheck,
   CalendarDays,
   Camera,
   CheckCircle2,
   CircleAlert,
+  CircleDollarSign,
   FileText,
   House,
   IdCard,
+  MapPin,
   PenLine,
   Printer,
   ShieldPlus,
@@ -32,7 +35,18 @@ import { useAuth } from '@/hooks/useAuth'
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/utils/format'
 import type { ContractBenefits, EmployeeRecordInput } from '@/schemas/employee'
-import { CONTRACT_LANGUAGES, CONTRACT_STATUSES, CONTRACT_TYPES, MIN_SERVICE_OPTIONS, contractProgress, defaultEndDate, type ContractLanguage } from '../../contractUtils'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  CONTRACT_LANGUAGES,
+  CONTRACT_STATUSES,
+  CONTRACT_TYPES,
+  MIN_SERVICE_OPTIONS,
+  amountInWords,
+  contractProgress,
+  defaultEndDate,
+  salaryTotal,
+  type ContractLanguage,
+} from '../../contractUtils'
 import { openEmployeeFile, validateDocumentFile } from '../../hooks/useEmployeeRecord'
 import { useFilePreview } from '../../hooks/useFilePreview'
 import { CameraCaptureDialog, SignaturePadDialog } from './CaptureDialogs'
@@ -78,6 +92,7 @@ function ReadOnly({ value }: { value: string }) {
 
 export function ContractSection({
   form,
+  branchName,
   photoPath,
   contractFile,
   employeeSignaturePath,
@@ -85,6 +100,8 @@ export function ContractSection({
   onPrint,
 }: {
   form: UseFormReturn<EmployeeRecordInput>
+  /** Printed as the first party when no employer name is entered. */
+  branchName: string
   photoPath: string | null | undefined
   contractFile: SavedFile | null
   employeeSignaturePath: string | null | undefined
@@ -158,6 +175,16 @@ export function ContractSection({
     { key: 'visa_cost', label: 'Employment visa cost (Company)', icon: IdCard, yes: visaCost ? `${formatCurrency(visaCost)} (Covered)` : 'Covered' },
     { key: 'min_service_mandatory', label: minMonths ? `Complete ${minMonths >= 12 && minMonths % 12 === 0 ? `${minMonths / 12} year${minMonths === 12 ? '' : 's'}` : `${minMonths} months`} contract` : 'Complete minimum service', icon: CalendarCheck, yes: 'Mandatory' },
     { key: 'medical_insurance', label: 'Medical insurance', icon: ShieldPlus, yes: 'Yes' },
+  ]
+
+  const salary = v.contract_salary
+  const total = salaryTotal(salary)
+  const currentSalary = Number(v.base_salary) || 0
+  const allowanceRows: { key: 'housing' | 'transport' | 'food' | 'other'; flag?: 'housing_by_employer' | 'transport_by_employer' | 'food_by_employer'; label: string; icon: LucideIcon }[] = [
+    { key: 'housing', flag: 'housing_by_employer', label: 'Housing allowance', icon: House },
+    { key: 'transport', flag: 'transport_by_employer', label: 'Transport allowance', icon: Bus },
+    { key: 'food', flag: 'food_by_employer', label: 'Food allowance', icon: Utensils },
+    { key: 'other', label: 'Other allowance', icon: Wallet },
   ]
 
   const signatureBox = (who: 'employee' | 'manager') => {
@@ -427,6 +454,99 @@ export function ContractSection({
             className="hidden"
             onChange={(e) => pickFile(e, (f) => setValue('contract_pending_file', f, { shouldDirty: true }))}
           />
+        </Panel>
+      </div>
+
+      <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_minmax(0,0.9fr)]">
+        <Panel title={<>First Party <span className="text-sm font-normal text-muted-foreground">(Employer)</span></>}>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Company / employer name" className="sm:col-span-2">
+              <IconInput icon={Building2} placeholder={branchName || 'Legal name on the trade licence'} {...register('contract_employer.name')} />
+            </Field>
+            <Field label="Trade licence no.">
+              <Input className="h-10" placeholder="e.g. CN-1234567" {...register('contract_employer.licence_number')} />
+            </Field>
+            <Field label="MOHRE establishment no.">
+              <Input className="h-10" placeholder="e.g. 1234567" {...register('contract_employer.establishment_number')} />
+            </Field>
+            <Field label="Represented by">
+              <Input className="h-10" placeholder="Name" {...register('contract_employer.representative')} />
+            </Field>
+            <Field label="Representative title">
+              <Input className="h-10" placeholder="e.g. Owner / Manager" {...register('contract_employer.representative_title')} />
+            </Field>
+            <Field label="Address" className="sm:col-span-2">
+              <IconInput icon={MapPin} placeholder="Emirate, area, building" {...register('contract_employer.address')} />
+            </Field>
+            <Field label="Phone">
+              <Input className="h-10" placeholder="+971 …" {...register('contract_employer.phone')} />
+            </Field>
+            <Field label="MOHRE transaction no.">
+              <Input className="h-10" placeholder="e.g. MB123456789AE" {...register('contract_transaction_number')} />
+            </Field>
+          </div>
+          {!v.contract_employer?.name && branchName && <p className="mt-2 text-xs text-muted-foreground">Left blank, the contract prints the branch name “{branchName}”.</p>}
+        </Panel>
+
+        <Panel title="Salary Details">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Basic salary (AED)">
+              <IconInput icon={CircleDollarSign} type="number" step="0.01" min="0" placeholder="0.00" {...register('contract_salary.basic')} />
+            </Field>
+            {allowanceRows.map((a) => {
+              const inKind = a.flag ? !!salary?.[a.flag] : false
+              return (
+                <Field key={a.key} label={`${a.label} (AED)`}>
+                  <IconInput
+                    icon={a.icon}
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder={inKind ? 'First party' : '0.00'}
+                    readOnly={inKind}
+                    className={inKind ? 'bg-muted/50' : undefined}
+                    {...register(`contract_salary.${a.key}`)}
+                  />
+                  {a.flag && (
+                    <label className="mt-1 flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
+                      <Switch
+                        className="scale-75"
+                        checked={inKind}
+                        onCheckedChange={(on) => {
+                          setValue(`contract_salary.${a.flag!}`, on, { shouldDirty: true })
+                          if (on) setValue(`contract_salary.${a.key}`, '', { shouldDirty: true })
+                        }}
+                        aria-label={`${a.label} provided by first party`}
+                      />
+                      Provided by first party
+                    </label>
+                  )}
+                </Field>
+              )
+            })}
+          </div>
+          <div className="mt-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="text-sm font-medium">Total monthly salary</span>
+              <span className="text-lg font-semibold tabular-nums">{formatCurrency(total)}</span>
+            </div>
+            {total > 0 && <p className="text-xs text-muted-foreground">AED {amountInWords(total)}</p>}
+          </div>
+          {currentSalary > 0 && total > 0 && Math.abs(currentSalary - total) > 0.005 && (
+            <p className="mt-2 flex items-center gap-1.5 text-xs text-warning-foreground">
+              <CircleAlert className="size-3.5" /> Current salary in Employment &amp; salary is {formatCurrency(currentSalary)}.
+            </p>
+          )}
+        </Panel>
+
+        <Panel title="Notes">
+          <Textarea
+            rows={11}
+            placeholder="Additional terms or notes to print on the contract, e.g. working hours, leave, notice period…"
+            aria-label="Contract notes"
+            {...register('contract_notes')}
+          />
+          <p className="mt-2 text-xs text-muted-foreground">Printed on the contract as “Additional Terms”.</p>
         </Panel>
       </div>
 
